@@ -12,6 +12,7 @@ const NAV_TARGETS: NavTarget[] = [
   { id: "board-week", label: "This Week" },
   { id: "board-log", label: "Log & Build" },
   { id: "board-trace", label: "Build trace" },
+  { id: "route:/chat", label: "Plan with AI" },
 ];
 
 function RootComponent() {

@@ -1,7 +1,9 @@
-import { DEMO_USER_ID } from './demo.js'
-import { applyClientStreamEvent, assistantText } from '@anvia/client'
-import type { ClientStreamEvent, UIMessage } from '@anvia/client'
-import { prisma } from '../../utils/prisma.js'
+import { applyClientStreamEvent, assistantText } from "@anvia/client";
+import type { ClientStreamEvent, UIMessage } from "@anvia/client";
+import { prisma } from "../../utils/prisma.js";
+
+/** PRD v1 (ADR 0002): one implicit user; anonymous chat writes under it. */
+export const DEMO_USER_ID = "demo";
 
 /**
  * Persistence for one chat turn: the last user message and the assistant
@@ -14,24 +16,26 @@ export async function recordTurn(options: {
   messages: readonly { role: string; content: unknown }[]
   stream: AsyncIterable<ClientStreamEvent>
 }): Promise<void> {
-  const ui: UIMessage[] = []
+  let ui: UIMessage[] = []
   let failed = false
+  let runText = ''
   for await (const event of options.stream) {
-    let next: readonly UIMessage[]
     try {
-      next = applyClientStreamEvent(ui, event)
+      // Reassign — never mutate in place. applyClientStreamEvent returns the
+      // same array for no-op events; `ui.length = 0` would wipe that alias.
+      ui = [...applyClientStreamEvent(ui, event)]
     } catch {
       // Protocol drift must not crash persistence.
-      next = ui
     }
-    ui.length = 0
-    ui.push(...next)
     if (event.type === 'error') failed = true
-    if (event.type === 'run_end' && event.status === 'error') failed = true
+    if (event.type === 'run_end') {
+      if (event.status === 'error') failed = true
+      if (typeof event.text === 'string' && event.text.length > 0) runText = event.text
+    }
   }
 
   const input = lastUserText(options.messages)
-  const output = assistantText(ui)
+  const output = assistantText(ui) || runText
   if (input === undefined && output.length === 0 && !failed) return
 
   try {
@@ -83,6 +87,8 @@ async function resolveThreadId(userId: string, threadId: string | undefined) {
       select: { id: true },
     })
     if (existing) return existing.id
+    const created = await prisma.thread.create({ data: { id: threadId, userId } })
+    return created.id
   }
   const created = await prisma.thread.create({ data: { userId } })
   return created.id
