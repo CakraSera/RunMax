@@ -10,10 +10,16 @@ import { buildRouter } from "./modules/build/router.js";
 import { weekRouter } from "./modules/week/router.js";
 import { authRoute } from "./modules/auth/route.js";
 import { chatRouter } from "./modules/chat/router.js";
+import { shutdownChatAgent } from "./modules/chat/agent.js";
 import { langfuse } from "@runmax/agent";
 
 const app = new Hono()
-  .use(cors())
+  .use(
+    cors({
+      origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
+      exposeHeaders: ["x-anvia-stream-protocol"],
+    }),
+  )
   .route("/api/build", buildRouter)
   .route("/api/week", weekRouter)
   .route("/api/chat", chatRouter)
@@ -31,6 +37,7 @@ serve(
 );
 
 const shutdown = async () => {
+  await shutdownChatAgent();
   await langfuse.close();
   process.exit(0);
 };

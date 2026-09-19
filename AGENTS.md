@@ -12,7 +12,9 @@ v1 scope is locked in [`document/PRD.en.md`](document/PRD.en.md) (Indonesian twi
 
 ## Architecture & Data Flow
 
-**Intended (PRD §7):** the chat agent (`/api/chat`, streaming) is live in `apps/api`; the Week/Board workflow is still FE mock only:
+**Intended (PRD §7 + [ADR 0016](docs/adr/0016-chat-surface-plan-with-ai.md)):** two agent surfaces, both
+Weeksmith: the Board's one-button **Build this week** and the `/chat` "Plan
+with AI" streaming surface.
 
 ```
 optional Log  →  Build this week  →  Weeksmith / BuildThisWeek
@@ -24,21 +26,25 @@ optional Log  →  Build this week  →  Weeksmith / BuildThisWeek
 
 - **Agent:** `Weeksmith`. **Workflow:** `BuildThisWeek`. Five verb tools only — no `doAnything`, no `loadGoal`.
 - **MCP:** `notes` (`searchNotes`, `readNote`) over builder-written markdown, not copyrighted books.
-- **Persistence:** Week + optional Log as one unauthenticated server record (`user: demo`). Rebuild **overwrites this Monday**. Older Mondays are not kept ([ADR 0010](docs/adr/0010-week-and-log-not-goal.md), [ADR 0011](docs/adr/0011-no-past-weeks.md)).
-- **Home is the Board**, not chat. No **Why?** drawer. Failures = banner on the Board.
+- **Persistence:** Week as one unauthenticated server record (`user: demo`). Rebuild **overwrites this Monday**. Older Mondays are not kept ([ADR 0010](docs/adr/0010-week-and-log-not-goal.md), [ADR 0011](docs/adr/0011-no-past-weeks.md)). Chat turns persist per thread; `GET /api/chat` replays them as history.
+- **Home is the Board**, not chat. Chat is a second surface ("Plan with AI" in the nav drawer). No **Why?** drawer. Failures = banner on the surface that triggered them.
 
 **Actual (today):**
 
 pnpm workspace:
 
 ```
-apps/platform   FE — Vite + TanStack Router Board
-apps/api        BE — Hono + Prisma (Week record for user `demo`)
+apps/platform   FE — Vite + TanStack Router Board + /chat (Plan with AI)
+apps/api        BE — Hono + Prisma (Week record + chat threads, user `demo`)
 packages/agent  AI — Weeksmith on Anvia (`@runmax/agent`)
 packages/domain Shared rules — checkWeek, parseCues (`@runmax/domain`)
 ```
 
-Board lives at [`apps/platform/src/routes/index.tsx`](apps/platform/src/routes/index.tsx). Mock Weeksmith is [`apps/platform/src/lib/weeksmith.ts`](apps/platform/src/lib/weeksmith.ts). Persistence is an in-memory module in `apps/platform/src/lib/store.ts`.
+Board lives at [`apps/platform/src/routes/index.tsx`](apps/platform/src/routes/index.tsx); the chat surface is
+[`apps/platform/src/routes/chat.tsx`](apps/platform/src/routes/chat.tsx). Board week data, edits, and Build go
+through `/api/week` and `/api/build` (`apps/platform/src/lib/board-api.ts`); chat streams
+through `/api/chat` (`apps/platform/src/lib/chat.ts`). The FE mock seam
+(`lib/store.ts`) is gone.
 
 Load-bearing product rules (enforce in `checkWeek` and at card-tap; never render an illegal Week):
 
@@ -88,7 +94,7 @@ pnpm --filter @runmax/domain test      # golden fixtures, offline
 pnpm --filter @runmax/agent evals      # PRD §10 fixtures through the model
 pnpm --filter @runmax/agent studio     # Anvia Studio UI at http://127.0.0.1:4021/playground
 pnpm --filter api dev      # server: tsx watch src/index.ts (port 8000)
-pnpm db:up                 # docker compose db on :15433 (api db:up = embedded on :54329)
+pnpm db:up                 # rootless embedded dev db on :54330 (docker compose db = :15434)
 pnpm db:migrate            # prisma migrate via root .env
 pnpm --filter api smoke    # route contract checks incl. auth flow
 ```

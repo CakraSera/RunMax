@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import Banner, { type BannerTone } from "@/components/Banner";
 import EditSheet from "@/components/EditSheet";
@@ -13,14 +13,11 @@ import {
   mondayOf,
   weekSummary,
   type Kind,
+  type ViolationCode,
   type Week,
 } from "@runmax/domain";
-import { loadWeek, saveWeek } from "@/lib/store";
-import {
-  runBuildThisWeek,
-  type Span,
-  type ToolStatus,
-} from "@/lib/weeksmith";
+import { buildWeek, fetchWeek, patchWeek } from "@/lib/board-api";
+import type { Span, ToolStatus } from "@/lib/weeksmith";
 
 interface BannerState {
   tone: BannerTone;
@@ -33,7 +30,7 @@ export const Route = createFileRoute("/")({
 
 function Board() {
   const [log, setLog] = useState("");
-  const [week, setWeek] = useState<Week | null>(() => loadWeek());
+  const [week, setWeek] = useState<Week | null>(null);
   const [building, setBuilding] = useState(false);
   const [spans, setSpans] = useState<Span[]>([]);
   const [statuses, setStatuses] = useState<Record<string, ToolStatus>>({});
@@ -42,33 +39,65 @@ function Board() {
 
   const weekStart = mondayOf(new Date());
 
+  // Load the persisted server Week on mount (ADR 0002: the record lives on
+  // the server for user `demo`).
+  useEffect(() => {
+    fetchWeek()
+      .then(setWeek)
+      .catch(() =>
+        setBanner({
+          tone: "error",
+          text: "Could not load your Week. Check that the API server is running.",
+        }),
+      );
+  }, []);
   const build = useCallback(async () => {
     setBuilding(true);
     setBanner(null);
     setStatuses({});
-    const result = await runBuildThisWeek(log, (next) => {
-      setSpans(next);
-      setStatuses(Object.fromEntries(next.map((s) => [s.tool, s.status])));
-    });
-    if (result.ok && result.week) {
-      saveWeek(result.week);
-      setWeek(result.week);
-      setBanner(
-        result.week.flags.includes("pain")
-          ? {
-              tone: "pain",
-              text: "Your Log mentions pain, so this week has no Quality — Easy, Walk, and Rest only. This is not a diagnosis.",
-            }
-          : { tone: "ok", text: `Week saved · ${weekSummary(result.week)}` },
-      );
-    } else {
-      setBanner({
-        tone: "error",
-        text: `Build failed: ${result.error ?? "Weeksmith could not complete"}. Nothing was saved.`,
+    // Animate the five workflow chips while the real workflow runs server
+    // side (PRD §6.4); the API response is the source of truth.
+    const animate = setInterval(() => {
+      setStatuses((prev) => {
+        const order = ["parseLog", "retrieveNotes", "draftWeek", "checkWeek", "saveWeek"] as const;
+        const next = { ...prev };
+        for (const tool of order) {
+          if (next[tool] !== "ok") {
+            next[tool] = "running";
+            break;
+          }
+        }
+        return next;
       });
+    }, 600);
+    try {
+      const result = await buildWeek(log);
+      if (result.ok && result.week) {
+        setStatuses(Object.fromEntries(["parseLog", "retrieveNotes", "draftWeek", "checkWeek", "saveWeek"].map((tool) => [tool, "ok" as ToolStatus])));
+        setWeek(result.week);
+        setBanner(
+          result.week.flags.includes("pain")
+            ? {
+                tone: "pain",
+                text: "Your Log mentions pain, so this week has no Quality — Easy, Walk, and Rest only. This is not a diagnosis.",
+              }
+            : { tone: "ok", text: `Week saved · ${weekSummary(result.week)}` },
+        );
+      } else {
+        setStatuses((prev) => ({ ...prev, saveWeek: "fail" }));
+        setBanner({
+          tone: "error",
+          text: `Build failed: ${result.error ?? "Weeksmith could not complete"}. Nothing was saved.`,
+        });
+      }
+    } catch {
+      setBanner({ tone: "error", text: "Build failed: the API server is unreachable. Nothing was saved." });
+    } finally {
+      clearInterval(animate);
+      setBuilding(false);
     }
-    setBuilding(false);
   }, [log]);
+
 
   const applyEdit = useCallback(
     (index: number, kind: Kind, minutes: number, note: string) => {
@@ -85,21 +114,38 @@ function Board() {
           : s,
       );
       const next: Week = { ...week, sessions };
+      // Server re-checks (ADR 0007): illegal edits never stick; the local
+      // checkWeek pass keeps the banner instant for the common rejections.
       const violations = checkWeek(next);
       if (violations.length > 0) {
         setBanner({
           tone: "blocked",
           text: `Change not applied — ${humanizeViolation(violations[0].code)} (${violations[0].detail})`,
         });
-      } else {
-        saveWeek(next);
-        setWeek(next);
-        setBanner({ tone: "ok", text: "Session updated." });
+        setEditingIndex(null);
+        return;
       }
-      setEditingIndex(null);
+      patchWeek(next)
+        .then((res) => {
+          if (res.ok) {
+            setWeek(next);
+            setBanner({ tone: "ok", text: "Session updated." });
+          } else {
+            const first = res.violations?.[0];
+            setBanner({
+              tone: "blocked",
+                text: `Change not applied — ${first ? humanizeViolation(first.code as ViolationCode) : "the Week would be illegal"}`,
+            });
+          }
+        })
+        .catch(() =>
+          setBanner({ tone: "error", text: "Could not save the change. The API server is unreachable." }),
+        )
+        .finally(() => setEditingIndex(null));
     },
     [week],
   );
+
 
   const editing = useMemo(
     () => (editingIndex !== null && week ? week.sessions[editingIndex] : null),
@@ -178,7 +224,7 @@ function Board() {
       />
 
       <p className="mb-6 text-center text-[11px] text-faint">
-        {DAY_SHORT.join(" · ")} — one week at a time. No past weeks, no chat, no diagnosis.
+        {DAY_SHORT.join(" · ")} — one week at a time. No past weeks, no diagnosis.
       </p>
     </main>
   );

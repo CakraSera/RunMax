@@ -122,7 +122,7 @@ try {
   // --- auth flow ---
   // Deterministic address so re-runs hit the same (existing) account: the
   // second register fails with 400, which is itself a check.
-  const email = `smoke-${new Date().toISOString().slice(0, 10)}@easyday.test`
+  const email = `smoke-${new Date().toISOString().slice(0, 10)}@runmax.test`
   const password = 'correct horse battery staple'
 
   const register = (payload: unknown) =>
@@ -159,7 +159,7 @@ try {
       await fetch(`${BASE}/auth/login`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email: 'nobody@easyday.test', password }),
+        body: JSON.stringify({ email: 'nobody@runmax.test', password }),
       })
     ).status,
     404,

@@ -8,10 +8,10 @@ import EmbeddedPostgres from 'embedded-postgres'
 // Usage: pnpm db:up | pnpm db:down
 
 const dir = process.env.DEV_DB_DIR ?? '.devpg'
-const port = Number(process.env.DEV_DB_PORT ?? 54329)
-const user = process.env.DEV_DB_USER ?? 'easyday'
-const password = process.env.DEV_DB_PASSWORD ?? 'easyday'
-const database = process.env.DEV_DB_NAME ?? 'easyday'
+const port = Number(process.env.DEV_DB_PORT ?? 54330)
+const user = process.env.DEV_DB_USER ?? 'runmax'
+const password = process.env.DEV_DB_PASSWORD ?? 'runmax'
+const database = process.env.DEV_DB_NAME ?? 'runmax'
 
 const command = process.argv[2] ?? 'up'
 

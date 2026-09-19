@@ -17,8 +17,8 @@ interface Props {
 
 /**
  * Right-side navigation drawer, opened from the header hamburger. Backdrop
- * tap, ✕, Escape, or choosing an entry dismisses it. The Board is the only
- * surface in v1 (PRD §3), so entries jump to Board sections, not routes.
+ * tap, ✕, Escape, or choosing an entry dismisses it. Board section ids
+ * scroll in place; `route:` ids are Links (ADR 0016: Plan with AI).
  */
 export default function NavDrawer({ open, targets, onNavigate, onClose }: Props) {
   const me = useMe();
@@ -66,16 +66,27 @@ export default function NavDrawer({ open, targets, onNavigate, onClose }: Props)
           </button>
         </div>
         <nav className="flex flex-col p-3">
-          {targets.map((target) => (
-            <button
-              key={target.id}
-              type="button"
-              onClick={() => onNavigate(target.id)}
-              className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-semibold text-ink hover:bg-info-tint"
-            >
-              {target.label}
-            </button>
-          ))}
+          {targets.map((target) =>
+            target.id.startsWith("route:") ? (
+              <Link
+                key={target.id}
+                to={target.id.slice("route:".length)}
+                onClick={onClose}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-semibold text-ink hover:bg-info-tint"
+              >
+                {target.label}
+              </Link>
+            ) : (
+              <button
+                key={target.id}
+                type="button"
+                onClick={() => onNavigate(target.id)}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-semibold text-ink hover:bg-info-tint"
+              >
+                {target.label}
+              </button>
+            ),
+          )}
         </nav>
         <div className="mt-auto flex flex-col gap-2 border-t border-border p-3">
           {me ? (
@@ -115,7 +126,7 @@ export default function NavDrawer({ open, targets, onNavigate, onClose }: Props)
           )}
         </div>
         <p className="px-5 pb-6 pt-2 text-xs leading-relaxed text-faint">
-          One week at a time. No past weeks, no chat, no diagnosis.
+          One week at a time. No past weeks, no diagnosis.
         </p>
       </aside>
     </div>
