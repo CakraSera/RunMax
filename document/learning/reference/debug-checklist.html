@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tracing debug checklist</title>
+  <link rel="stylesheet" href="../assets/lesson.css" />
+</head>
+<body>
+  <div class="wrap">
+    <nav class="crumbs">
+      <a href="../lessons/0001-print-the-trace-id.html">Lesson 0001</a>
+      ·
+      <a href="../RESOURCES.md">Resources</a>
+    </nav>
+    <header class="mast">
+      <p class="kicker">Reference</p>
+      <h1>Tracing debug checklist</h1>
+      <p class="lede">Print this. Walk it top to bottom. Do not skip the id.</p>
+    </header>
+
+    <table>
+      <thead>
+        <tr><th>#</th><th>Check</th><th>If it fails</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>Terminal prints a <code>traceId</code> after the run</td>
+          <td>Observer never started. Agent <code>observability</code> wiring.</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>Short script calls <code>flush()</code> or <code>close()</code> before exit</td>
+          <td>Queue dies with the process. <a href="https://langfuse.com/docs/observability/features/queuing-batching">Queuing docs</a>.</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td><code>GET /api/public/traces/{traceId}</code> with project keys returns 200</td>
+          <td>Not ingested: keys, host, or exporter dropped the spans.</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>UI Traces: 24h, no environment / type filter</td>
+          <td>Ingested. Your view is hiding it.</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td>Root observation type is what you intended (<code>AGENT</code> vs <code>SPAN</code>)</td>
+          <td>Created with the wrong <code>asType</code>. Later lesson.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>console.log ↔ tracing</h2>
+    <table>
+      <thead>
+        <tr><th>You used to</th><th>Now</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>console.log(value)</code></td><td><code>console.log(traceId)</code></td></tr>
+        <tr><td>Read the terminal</td><td>Search that id in API, then UI</td></tr>
+        <tr><td>“Function returned”</td><td><code>flush()</code> returned — not the same as “row exists”</td></tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      Sources:
+      <a href="https://langfuse.com/docs/observability/data-model">data model</a>,
+      <a href="https://langfuse.com/docs/observability/features/queuing-batching">batching</a>,
+      <a href="https://langfuse.com/docs/observability/features/observation-types">observation types</a>.
+    </p>
+    <footer class="foot">Keep next to <a href="../lessons/0001-print-the-trace-id.html">lesson 0001</a>.</footer>
+  </div>
+</body>
+</html>
