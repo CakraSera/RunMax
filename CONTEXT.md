@@ -1,6 +1,6 @@
 # RunMax
 
-One runner’s **this Week** of running, aimed at VO2 max in copy only. Produced from an optional messy Log. Shown as a Board on mobile-first web. Not a plan, not a race Goal, not a lab, not a chatbot, not WhatsApp.
+One runner’s **this Week** of running, aimed at VO2 max in copy only. Produced from an optional messy Log (pasted on the Board, or written by Consult). Shown as a Board on mobile-first web. Home is not a chatbot. Not a plan, not a race Goal, not a lab, not WhatsApp.
 
 ## Language
 
@@ -45,20 +45,32 @@ A Week flag set when the Log contains injury or pain cues. Pain means no Quality
 _Avoid_: injury (as a medical object), diagnosis, condition
 
 **Board**:
-The home screen and the v1 artifact: seven Session cards for this Week, on mobile-first web. Not a chat thread and not a share-to-chat message.
-_Avoid_: chat, inbox, feed, calendar UI, WhatsApp, copy block, Why drawer, past Weeks list
+The home screen and the v1 artifact: seven Session cards for this Week, on mobile-first web. Not a share-to-chat message. Consult is a second entry, not the Board.
+_Avoid_: inbox, feed, calendar UI, WhatsApp, copy block, Why drawer, past Weeks list, chat as home
 
 **Build this week**:
-The one-button action that runs the BuildThisWeek workflow and writes the Week. Empty Log still builds a dated Week.
-_Avoid_: generate, ask the AI, chat, plan my week (as a prompt)
+The one-button action that runs the BuildThisWeek workflow and writes the Week. Empty Log still builds a dated Week. Consult may ask this as a confirm before handoff.
+_Avoid_: generate, ask the AI, plan my week (as a prompt)
 
 **Weeksmith**:
-The single AI agent that drafts and checks the Week.
-_Avoid_: chatbot, copilot, assistant (as the product), Vo2PlanAgent, planner
+The AI agent that drafts and checks the Week. The only agent that may call `draftWeek` / `checkWeek` / `saveWeek`.
+_Avoid_: chatbot, copilot, assistant (as the product), Vo2PlanAgent, planner, ConsultSmith (as an alias)
 
 **BuildThisWeek**:
-The agentic workflow: parse Log, retrieve notes, draft Week, check Week, save Week.
+The Weeksmith workflow: parse Log, retrieve notes, draft Week, check Week, save Week. Board CTA and Consult handoff both run this.
 _Avoid_: SundayRoll (alias only), conversation, chain, formatWhatsApp, loadGoal, BuildWeek
+
+**Consult**:
+Optional second entry: a short interview that writes a Log, then asks **Build this week?** and hands off to Weeksmith. Not home. Never drafts Sessions.
+_Avoid_: chatbot (as home), planner thread, Why drawer, questionnaire, onboarding
+
+**ConsultSmith**:
+The AI agent that runs Consult. Tools: `askCues`, `saveLog`, `buildThisWeek` (handoff). Does not draft, check, or save a Week.
+_Avoid_: Weeksmith (as an alias), chatbot, copilot, diagnosis bot
+
+**ConsultThenBuild**:
+The ConsultSmith workflow: interview → saveLog → confirm → buildThisWeek handoff (nested BuildThisWeek).
+_Avoid_: conversation as the artifact, doAnything, loadGoal
 
 **VO2 max**:
 Purpose copy on the Board only. Not a stored number, not a lab value, not a wearable reading, not a 5K time.

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Your agent, like you're 7</title>
+  <link rel="stylesheet" href="../assets/lesson.css" />
+</head>
+<body>
+  <div class="wrap">
+    <nav class="crumbs">
+      <a href="../MISSION.md">Mission</a>
+      ·
+      <a href="../reference/presentation-cheatsheet.html">Cheat sheet</a>
+      ·
+      <a href="0001-print-the-trace-id.html">Lesson 0001</a>
+    </nav>
+    <header class="mast">
+      <p class="kicker">Lesson 0002 · Present RunMax</p>
+      <h1>Your agent, like you're 7</h1>
+      <p class="lede">One story, five sentences, four toys. Say it out loud twice and you own it.</p>
+    </header>
+
+    <h2>The story in 5 sentences</h2>
+    <ol class="steps">
+      <li><strong>A runner keeps a messy diary</strong> (the <em>Log</em>) — sometimes Indonesian, sometimes English, sometimes both.</li>
+      <li><strong>A robot helper reads the diary</strong> and builds a plan for <em>this week only</em>: Monday to Sunday, 7 day-cards (the <em>Board</em>).</li>
+      <li><strong>The robot has rules</strong>: max 1 hard day, at least 1 rest day, and if the diary says <em>"knee hurts"</em> — zero hard days, and it never plays doctor.</li>
+      <li><strong>A teacher checks the plan</strong> before it ships (<em>checkWeek</em>). Illegal plan? Blocked. The robot retries until legal.</li>
+      <li><strong>A camera films everything</strong> (<em>Langfuse</em>): every thought, every tool, one film per build.</li>
+    </ol>
+
+    <h2>Meet the cast (4 toys)</h2>
+    <table>
+      <thead><tr><th>Toy</th><th>Kid word</th><th>Real term</th></tr></thead>
+      <tbody>
+        <tr><td>Weeksmith</td><td>The builder robot</td><td>AI agent (5 tools)</td></tr>
+        <tr><td>ConsultSmith</td><td>The asking robot</td><td>Chat agent (3 tools)</td></tr>
+        <tr><td>checkWeek</td><td>The strict teacher</td><td>Rule engine, fails closed</td></tr>
+        <tr><td>Langfuse</td><td>The camera</td><td>Tracing / observability</td></tr>
+      </tbody>
+    </table>
+
+    <h2>The 8 tools (robot's hands)</h2>
+    <p class="note">Weeksmith: <code>parseLog</code> · <code>retrieveNotes</code> · <code>draftWeek</code> · <code>checkWeek</code> · <code>saveWeek</code>. ConsultSmith: <code>askCues</code> · <code>saveLog</code> · <code>buildThisWeek</code>.</p>
+    <p>Kid version: <em>read the diary → peek at the coach's notes → draw the plan → teacher check → ship it</em>. The asking robot: <em>re-read the diary → save diary → call the builder</em>.</p>
+
+    <h2>The library (MCP)</h2>
+    <p>
+      Before drawing the plan, the robot visits a tiny library of 6 coach notes (<em>MCP</em> = a door the robot knocks on to borrow books: <code>searchNotes</code>, <code>readNote</code>).
+      It's RAG: <em>look it up</em> instead of <em>make it up</em>.
+    </p>
+
+    <h2>Report card (evals)</h2>
+    <p>
+      13 tests, all passing: 10 for the builder (empty diary, knee pain, two hard days, overwrite last build…), 3 for the asker (pain logged, asks once, never diagnoses).
+      Kid version: <em>a quiz the robot must pass every time we change it</em>.
+    </p>
+
+    <h2>Say it back</h2>
+    <div class="quiz" data-quiz data-correct="a" data-ok="Yes — 7 day-cards, one week, no calendar." data-bad="The product is this week only — 7 cards.">
+      <h3>1. What does the robot build?</h3>
+      <button type="button" data-choice="a">This week's 7 day-cards.</button>
+      <button type="button" data-choice="b">A 16-week big calendar.</button>
+      <button type="button" data-choice="c">A chat with the runner.</button>
+      <div class="feedback" aria-live="polite"></div>
+    </div>
+    <div class="quiz" data-quiz data-correct="a" data-ok="Yes — pain blocks hard days. No diagnosing." data-bad="Pain locks out hard days, and we never diagnose.">
+      <h3>2. Diary says "lutut nyeri" (knee hurts). Robot must…</h3>
+      <button type="button" data-choice="a">Skip hard days, never diagnose.</button>
+      <button type="button" data-choice="b">Diagnose and rest the knee.</button>
+      <button type="button" data-choice="c">Keep one hard day anyway.</button>
+      <div class="feedback" aria-live="polite"></div>
+    </div>
+    <div class="quiz" data-quiz data-correct="a" data-ok="Right — camera = Langfuse tracing." data-bad="The camera is Langfuse — it films, it never commands.">
+      <h3>3. Langfuse is…</h3>
+      <button type="button" data-choice="a">The camera that films runs.</button>
+      <button type="button" data-choice="b">The robot that runs builds.</button>
+      <button type="button" data-choice="c">The teacher blocking drafts.</button>
+      <div class="feedback" aria-live="polite"></div>
+    </div>
+
+    <h2>Read this</h2>
+    <p class="source">
+      Primary source: <a href="https://langfuse.com/blog/2025-03-llm-agent-observability-tracing-with-langfuse">Langfuse agent tracing (why one film per run)</a> — and our own
+      <a href="../../document/PRD.en.md">PRD §7</a> for the tool list you just memorized.
+    </p>
+    <p class="ask">
+      Stuck on a word? Ask the teacher. Every word here has a kid version and a real version; you need both.
+    </p>
+    <footer class="foot">
+      Next: <a href="../reference/presentation-cheatsheet.html">the presenter cheat sheet</a> — then rehearse the live demo.
+    </footer>
+  </div>
+  <script src="../assets/quiz.js"></script>
+</body>
+</html>

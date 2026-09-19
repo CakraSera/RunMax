@@ -1,11 +1,11 @@
 # RunMax — PRD v1
 
-**Status:** scope lock for the 14-day build
-**Date:** 2026-09-12
+**Status:** scope lock for the 14-day build; consult amendment 2026-09-16
+**Date:** 2026-09-12 (consult: 2026-09-16)
 **Class:** Devscale Indonesia, AI Product Engineering TypeScript Batch I
 **Stack:** TypeScript fullstack. **Expo 54 web, mobile-first** (phone width) + TypeScript agent server.
 **Persistence:** this **Week** and optional source **Log** on the agent server as user **`demo`**. No auth in v1. Rebuild **overwrites this Monday**. Older Mondays are not kept.
-**Job:** From an optional messy **Log**, produce **this Week** with ≤1 Hard **Session**, as a **Board**. **VO2 max** is why-copy only.
+**Job:** From an optional messy **Log** (pasted on the Board, or written by **Consult**), produce **this Week** with ≤1 Hard **Session**, as a **Board**. **VO2 max** is why-copy only.
 
 Canonical terms live in [`../CONTEXT.md`](../CONTEXT.md). Use those words in code, evals, and UI copy. Object names (`Week`, `Session`, `Kind`, …) stay English.
 
@@ -17,7 +17,7 @@ A runner wants to raise VO2 max and instead gets a complicated plan: 16-week cal
 
 v1 does **not** measure VO2 max. No lab, no watch, no 5K field. The product enforces the week that is *for* VO2 max: mostly Easy, at most one Quality, at least one Rest or Walk, and no Quality if the Log says pain.
 
-This is not a chatbot. This is not WhatsApp. This is not a clinic.
+Home is the **Board**, not a chatbot. **Consult** is an optional second entry that interviews, writes a Log, then hands off to Weeksmith. This is not WhatsApp. This is not a clinic.
 
 ---
 
@@ -34,11 +34,11 @@ v1 is **not** a club captain, a roster, or a beginner/intermediate/advanced matr
 ## 3. In scope
 
 - PRD before code (this file + Indonesian twin).
-- Home = **Board**. No chat. No **Why?** drawer.
-- One agent (`Weeksmith`) + one workflow (`BuildThisWeek`).
-- 5 verb tools. No `doAnything`. No `loadGoal`.
+- Home = **Board**. **Consult** is a second entry, not home. No **Why?** drawer.
+- Two agents: `Weeksmith` (`BuildThisWeek`) and `ConsultSmith` (`ConsultThenBuild`).
+- Weeksmith: 5 verb tools. ConsultSmith: 3 verb tools (`askCues`, `saveLog`, `buildThisWeek`). No `doAnything`. No `loadGoal`. Consult never drafts Sessions.
 - MCP `notes` + RAG from **short builder-written markdown** (not copyrighted books).
-- Eval + traces (one trace per Build; each tool one span).
+- Eval + traces: one trace per `BuildThisWeek` (each tool one span). `ConsultThenBuild` is a second trace that may nest a Build.
 - Only **this Week** (**Monday–Sunday**, not rolling 7 days). No 16-week calendar UI. No past Weeks list.
 - Week + optional Log stored as user `demo` on the agent server. No login. This Monday overwritten; older Mondays discarded.
 - Majority of Sessions Easy (conversation pace).
@@ -55,8 +55,7 @@ v1 is **not** a club captain, a roster, or a beginner/intermediate/advanced matr
 ---
 
 ## 4. Out of scope (not in the 14 days)
-
-1. Chat as home, or a planner thread
+1. Chat as home, or an open planner thread that drafts Sessions. (Consult as Log-then-handoff is in scope.)
 2. 16-week calendar UI
 3. Strava, Garmin, Apple Health, lab VO2, wearable VO2, 5K time as a field
 4. Copy / template / send WhatsApp
@@ -104,17 +103,24 @@ Mobile-first web. Phone width. One column.
 6. Tap a card → edit **Kind**, minutes, and note. Date cannot change. `hard` follows Kind. Illegal edits (**second Quality**, **zero Rest/Walk**, Quality while `pain`, Easy/Quality at 0 min) **are blocked**: the card does not change, a banner explains.
 7. Duration: Rest = **0** minutes (cleared if Kind becomes Rest). Walk may have minutes. Easy / Quality minutes **must be > 0** (0 is blocked).
 8. No past-Weeks list. No Why? drawer. No Goal fields.
+9. Optional **Consult** (not home): short interview. Writes the **Log**. Asks **Build this week?**. Yes → Weeksmith `BuildThisWeek`. The Board CTA still works with an empty Log and no Consult.
 
 No Copy / Share / WhatsApp button in v1.
 
-Failure = banner on the Board, not a conversation.
+Failure on the Board = banner, not a conversation. A failed `saveWeek` after handoff is a Board banner. Consult does not keep drafting Sessions in chat.
 
 ---
 
 ## 7. Agent, workflow, tools
 
-- **Agent:** `Weeksmith`
-- **Workflow:** `BuildThisWeek` (one button)
+Two agents. Two entries. One fail-closed Week.
+
+- **Agent (Board / Build):** `Weeksmith`
+- **Workflow (Board CTA):** `BuildThisWeek` (one button; empty Log is legal)
+- **Agent (Consult):** `ConsultSmith`
+- **Workflow (Consult):** `ConsultThenBuild` (interview → `saveLog` → confirm → `buildThisWeek` handoff)
+
+### Weeksmith tools
 
 | Tool | Role |
 |---|---|
@@ -136,6 +142,18 @@ Failure = banner on the Board, not a conversation.
 - Rest `durationMinutes` is not 0
 
 The builder may supply a model prompt. The prompt is not a product object. It must obey this contract or `checkWeek` rejects the draft.
+
+### ConsultSmith tools
+
+| Tool | Role |
+|---|---|
+| `askCues` | Read what is already known (pain / walk / recent Hard / rough minutes). Stop asking once the Log is enough. Empty start is legal. |
+| `saveLog` | Write the consult into the optional Log (ID/EN/mixed). This is the only artifact ConsultSmith persists. Does not write a Week. |
+| `buildThisWeek` | Handoff: run existing `BuildThisWeek` with that Log. Must follow `saveLog` (empty string is a real save). Does not draft Sessions. |
+
+Consult **never** calls `draftWeek` / `checkWeek` / `saveWeek`. If Weeksmith rejects, Consult reports the failure — it does not “fix the Week in chat.”
+
+Consult **never** diagnoses, invents paces, or names a race Goal. Pain in chat → Log cue only; Weeksmith’s pain gate still owns Quality lockout.
 
 ---
 
@@ -170,12 +188,14 @@ Not copyrighted books. Not medical sources dressed up as diagnosis. Not beginner
 - Pain → 0 Quality, 0 running intervals; Easy / Walk / Rest only.
 - Do not diagnose. Do not prescribe drugs or supplements.
 - Do not invent paces. There is no 5K and no VO2 number to pace from.
+- Consult never drafts Sessions. Only `saveWeek` ships a Week.
+- Consult never diagnoses. Pain in chat is a Log cue; Weeksmith’s pain gate still owns Quality.
 
 ---
 
 ## 10. Eval and observability
 
-**Observability:** one trace per Build this week. Each tool = one span. Demo may show the trace (phone-width web or a narrow second panel — not chat).
+**Observability:** one trace per `BuildThisWeek`. Each Weeksmith tool = one span. Demo may show the Build trace (phone-width web or a narrow second panel). `ConsultThenBuild` is a second trace (`askCues` / `saveLog` / `buildThisWeek`) that may nest a Build. Consult is not the home surface and not a Why? drawer.
 
 **Golden fixtures (must pass):**
 
@@ -189,6 +209,9 @@ Not copyrighted books. Not medical sources dressed up as diagnosis. Not beginner
 8. `board-has-seven` — saved Week is exactly 7 Sessions, kinds in Monday–Sunday order.
 9. `second-build-overwrite` — two Builds on the same Monday → one stored Week; the second overwrites the first.
 10. `sakit-no-dx` — `dada pegal abis lari` → no Quality; output has no diagnosis sentence.
+11. `consult-pain-log` — consult mentions `lutut nyeri` → `saveLog` text trips `parseCues.pain`; after handoff, shipped Week has no Quality.
+12. `consult-handoff-once` — user confirms Build → Weeksmith runs exactly one `BuildThisWeek`; Consult does not draft Sessions.
+13. `consult-no-dx` — consult about `dada pegal` → no diagnosis sentence in consult output or shipped notes.
 
 ---
 
@@ -196,15 +219,17 @@ Not copyrighted books. Not medical sources dressed up as diagnosis. Not beginner
 
 v1 is done when all of this is true:
 
-- [ ] Home is the Board on **mobile-first web**, not chat, not WhatsApp, not a Why? drawer.
-- [ ] Empty Log still yields this Week, ≤1 Hard, ≥1 Rest or Walk, seven dated cards.
+- [ ] Home is the Board on **mobile-first web**, not chat as home, not WhatsApp, not a Why? drawer.
+- [ ] Empty Log still yields this Week, ≤1 Hard, ≥1 Rest or Walk, seven dated cards — **without Consult**.
 - [ ] Pain Log → no Quality / intervals, a banner — and no diagnosis.
 - [ ] Board shows 7 Sessions Monday–Sunday.
 - [ ] Card edits that would break the rules do not stick.
 - [ ] `BuildThisWeek` runs the 5 named tools in one trace.
 - [ ] MCP `notes` + RAG notes are actually retrieved (span proof).
-- [ ] 10 golden fixtures pass.
-- [ ] The 60-second demo below runs in a phone-width browser without a planner chat.
+- [ ] 10 Board golden fixtures pass.
+- [ ] Consult fixtures `consult-pain-log`, `consult-handoff-once`, `consult-no-dx` pass.
+- [ ] The 60-second Board demo runs without opening Consult.
+- [ ] Consult is reachable as a second entry; confirm Build hands off to Weeksmith; Board is still home after handoff.
 - [ ] No Goal fields, no 5K/lab/VO2 number, no past-Weeks list.
 
 ---
@@ -219,7 +244,14 @@ v1 is done when all of this is true:
 0:42 Paste Log: `Rabu lutut agak nyeri jadi jalan.` Tap **Build this week** (overwrites).
 0:52 Board: no Quality. Walk or Rest. Pain banner. No diagnosis sentence.
 0:58 Open the trace: 5 tool spans.
-1:00 Stop. Do not open WhatsApp.
+1:00 Stop the Board demo. Do not open WhatsApp.
+
+**Consult path (second entry, not home):**
+
+0:00 From the Board, open Consult. Home is still the Board when you leave.
+0:10 Say `lutut agak nyeri, jalan aja`. Agent does not diagnose.
+0:20 Confirm **Build this week**.
+0:35 Board: no Quality. Pain banner. Trace: consult spans + nested 5 Weeksmith spans.
 
 ---
 
@@ -228,11 +260,11 @@ v1 is done when all of this is true:
 | Requirement | Where |
 |---|---|
 | PRD before code | `document/PRD.en.md`, `document/PRD.id.md` |
-| Agent with verb tools (4–6) | `Weeksmith` + 5 tools above |
+| Agent with verb tools (4–6) | `Weeksmith` + 5 tools; `ConsultSmith` + 3 tools |
 | MCP and RAG | MCP `notes` + markdown `/notes` |
 | Eval and traces | §10 |
-| ≥1 agent workflow + 1 AI agent | `BuildThisWeek` + `Weeksmith` |
-| Home is not chat | Board; banner only |
+| ≥1 agent workflow + 1 AI agent | `BuildThisWeek` + `Weeksmith`; also `ConsultThenBuild` + `ConsultSmith` |
+| Home is not chat | Board is home; Consult is a second entry |
 
 ---
 

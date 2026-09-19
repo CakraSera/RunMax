@@ -38,7 +38,7 @@ serve(
 
 const shutdown = async () => {
   await shutdownChatAgent();
-  await langfuse.flush();
+  await langfuse.close();
   process.exit(0);
 };
 process.on("SIGINT", shutdown);
