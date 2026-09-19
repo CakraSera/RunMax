@@ -31,7 +31,7 @@ serve(
 );
 
 const shutdown = async () => {
-  await langfuse.flush();
+  await langfuse.close();
   process.exit(0);
 };
 process.on("SIGINT", shutdown);

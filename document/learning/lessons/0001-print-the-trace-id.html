@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Print the trace id</title>
+  <link rel="stylesheet" href="../assets/lesson.css" />
+</head>
+<body>
+  <div class="wrap">
+    <nav class="crumbs">
+      <a href="../MISSION.md">Mission</a>
+      ·
+      <a href="../reference/debug-checklist.html">Checklist</a>
+    </nav>
+    <header class="mast">
+      <p class="kicker">Lesson 0001 · Tracing debug</p>
+      <h1>Print the trace id</h1>
+      <p class="lede">
+        Tracing debug is the same move as <code>console.log</code>: print a value you can search for. <code>flush()</code> is not that value.
+      </p>
+    </header>
+
+    <h2>The trap</h2>
+    <p>
+      Langfuse does not send a trace the moment the agent finishes. It <em>queues</em> work and ships it in the background so the app stays fast.
+      That is official behaviour, not a bug.
+      (<a href="https://langfuse.com/docs/observability/data-model">Core Concepts</a>,
+      <a href="https://langfuse.com/docs/observability/features/queuing-batching">Queuing / batching</a>.)
+    </p>
+    <p>
+      A short script like <code>pnpm runner:dev</code> can exit while the queue is still in memory.
+      <code>flush()</code> / <code>close()</code> exist so the process waits for a send <em>attempt</em>.
+      An empty queue still “succeeds.” You get no error and no row in the UI.
+    </p>
+    <p class="note">
+      <code>console.log("ran")</code> proves a line executed. <code>await langfuse.flush()</code> proves the exporter woke up. It does not prove Langfuse stored a trace.
+    </p>
+
+    <h2>The three-line debug</h2>
+    <p>
+      After <code>agent.generate()</code> (or <code>runBuildThisWeek</code>), print the id the run claims, then flush, then search that id.
+    </p>
+<pre><code>const result = await agent.generate({ prompt, trace: { name: "BuildThisWeek" } });
+console.log("traceId", result.trace?.traceId);
+await langfuse.close(); // flush + stop, for short scripts</code></pre>
+    <p>
+      In this repo the workflow already names the run <code>BuildThisWeek</code>.
+      The missing piece is almost always the printed id.
+    </p>
+    <ol class="steps">
+      <li>Run <code>pnpm --filter @runmax/agent runner:dev</code> with that log line (or log <code>result.trace</code> inside <code>runBuildThisWeek</code>).</li>
+      <li>Copy the <code>traceId</code> from the terminal.</li>
+      <li>Langfuse UI → Traces → last 24h, <strong>no filters</strong> → search that id. Or <code>GET /api/public/traces/{id}</code> with your project keys.</li>
+    </ol>
+    <p>
+      Three outcomes, three different bugs:
+    </p>
+    <table>
+      <thead>
+        <tr><th>You see</th><th>Means</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>No <code>traceId</code> printed</td>
+          <td>The observer never started. Wiring, not Langfuse.</td>
+        </tr>
+        <tr>
+          <td>Id printed, API 404 / UI empty after a minute</td>
+          <td>Created locally, not ingested (export filter, keys, or process exit).</td>
+        </tr>
+        <tr>
+          <td>Id in API, missing in UI</td>
+          <td>Ingest worked. Your view is filtered (environment, time range, type).</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Check yourself</h2>
+    <div class="quiz" data-quiz data-correct="a" data-ok="Right. Search the id. Flush is not a receipt." data-bad="Flush returning is not proof the row exists.">
+      <h3>1. generate() finished, flush() returned, UI empty. First move?</h3>
+      <button type="button" data-choice="a">Look up that printed trace id.</button>
+      <button type="button" data-choice="b">Trust flush and wait longer.</button>
+      <button type="button" data-choice="c">Comment out tracing and re-run.</button>
+      <div class="feedback" aria-live="polite"></div>
+    </div>
+    <div class="quiz" data-quiz data-correct="a" data-ok="Yes. An empty buffer still flushes cleanly." data-bad="A clean flush can mean “nothing to send.”">
+      <h3>2. Why can flush succeed with no Langfuse row?</h3>
+      <button type="button" data-choice="a">Export buffer held zero spans.</button>
+      <button type="button" data-choice="b">Langfuse dropped the whole project.</button>
+      <button type="button" data-choice="c">The model used extra tokens.</button>
+      <div class="feedback" aria-live="polite"></div>
+    </div>
+
+    <h2>Read this</h2>
+    <p class="source">
+      Primary source:
+      <a href="https://langfuse.com/docs/observability/data-model">Langfuse Core Concepts — background processing &amp; short-lived apps</a>.
+      Then the one-page <a href="../reference/debug-checklist.html">debug checklist</a>.
+    </p>
+
+    <p class="ask">
+      Ask the teacher anything that is fuzzy. “Flush vs close,” “where is <code>result.trace</code> in <code>runBuildThisWeek</code>,” “what is an observation” — all fair.
+    </p>
+
+    <footer class="foot">
+      Tied to <a href="../MISSION.md">the mission</a>. Next only after you have one printed id, found or proven missing.
+    </footer>
+  </div>
+  <script src="../assets/quiz.js"></script>
+</body>
+</html>

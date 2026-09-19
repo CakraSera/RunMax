@@ -113,8 +113,8 @@ max), `LANGFUSE_*`). Gateway is OpenRouter.
 | File | Why |
 |---|---|
 | `packages/domain/src/domain.ts` | `checkWeek`, `parseCues`, and Week/Session types (shared rule engine). |
-| `packages/agent/src/agent.ts` | Weeksmith construction (Anvia `Agent`, controls, observability). |
-| `packages/agent/src/tools/index.ts` | The 5 verb tools; `saveWeek` fails closed. |
+| `packages/agent/src/agent.ts` | Weeksmith and ConsultSmith construction. |
+| `packages/agent/src/tools.ts` | Verb tools; `saveWeek` fails closed. |
 | `packages/agent/src/evals/` | PRD §10 golden fixtures + runner. |
 | `packages/agent/notes/` | RAG corpus — 6 builder-written markdown notes. |
 | `apps/platform/src/routes/__root.tsx` | Root layout / header. |
@@ -134,7 +134,7 @@ max), `LANGFUSE_*`). Gateway is OpenRouter.
 
 | Item | Pin |
 |---|---|
-| Agent framework | Anvia 1.x — `@anvia/core@^1.3.0`, `@anvia/openai`, `@anvia/langfuse`, `@anvia/mcp` |
+| Agent framework | Anvia 1.x — `@anvia/core@^1.3.0`, `@anvia/openai`, `@anvia/mcp`; traces via `@langfuse/otel` + `@langfuse/tracing` + NodeSDK |
 | Model | `z-ai/glm-5.3-flash` via OpenRouter; `reasoningEffort` low \| high \| max, default **max** |
 | Frontend | Vite 8 + TanStack Router + React 19 + Tailwind CSS 4 |
 | TypeScript | `~5.9.2` |

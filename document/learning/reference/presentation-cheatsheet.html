@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Presentation cheat sheet</title>
+  <link rel="stylesheet" href="../assets/lesson.css" />
+</head>
+<body>
+  <div class="wrap">
+    <nav class="crumbs">
+      <a href="../lessons/0002-explain-your-agent-like-7.html">Lesson 0002</a>
+      ·
+      <a href="../MISSION.md">Mission</a>
+    </nav>
+    <header class="mast">
+      <p class="kicker">Reference · print me</p>
+      <h1>Presentation cheat sheet</h1>
+      <p class="lede">Facts to say, commands to type, answers to hard questions.</p>
+    </header>
+
+    <h2>Numbers you may say (all verified today)</h2>
+    <table>
+      <thead><tr><th>Fact</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td>AI agents</td><td>2 — Weeksmith (builder), ConsultSmith (asker)</td></tr>
+        <tr><td>Tools</td><td>8 — 5 Weeksmith + 3 ConsultSmith</td></tr>
+        <tr><td>Evals</td><td>13 — 10 board + 3 consult, all passing</td></tr>
+        <tr><td>Coach notes (RAG corpus)</td><td>6 markdown files via MCP</td></tr>
+        <tr><td>Week shape</td><td>Monday–Sunday, exactly 7 Sessions</td></tr>
+        <tr><td>Hard limit</td><td>≤1 Quality (Hard); pain in Log ⇒ 0 Hard</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Live demo script (3 commands)</h2>
+<pre><code>pnpm --filter @runmax/agent runner:dev "Rabu lutut agak nyeri, jalan aja"</code></pre>
+    <p>Say: <em>"Messy diary in. Week out. Watch — no hard day, because knee."</em></p>
+<pre><code>pnpm --filter @runmax/agent studio</code></pre>
+    <p>Say: <em>"Playground at 127.0.0.1:4021 — chat with the asker robot, it calls the builder."</em></p>
+<pre><code>pnpm --filter @runmax/agent evals</code></pre>
+    <p>Say: <em>"13 quizzes, all must pass. This is how we stop the robot from inventing bad plans."</em></p>
+    <p class="note">Evals take ~4 minutes (real model). Pre-run before presenting. If Langfuse is on screen, show the trace: one film, Agent root, tool children — lesson <a href="../lessons/0001-print-the-trace-id.html">0001</a> if a trace is missing.</p>
+
+    <h2>Hard questions, one-breath answers</h2>
+    <table>
+      <thead><tr><th>Question</th><th>Answer</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Why only one hard day?</td>
+          <td>One Quality day is the training signal; more is injury risk. The teacher (<code>checkWeek</code>) blocks extra ones — the model cannot ship them.</td>
+        </tr>
+        <tr>
+          <td>What is MCP?</td>
+          <td>A standard door between the agent and tools. Our door: <code>notes</code> — <code>searchNotes</code> + <code>readNote</code> over 6 markdown files.</td>
+        </tr>
+        <tr>
+          <td>What is RAG here?</td>
+          <td>The robot looks up coach notes before drafting instead of guessing from memory.</td>
+        </tr>
+        <tr>
+          <td>What is Langfuse?</td>
+          <td>A camera on every run: one trace per build, every tool call a span. We debug with the traceId, like console.log.</td>
+        </tr>
+        <tr>
+          <td>Is the model trusted?</td>
+          <td>No. <code>checkWeek</code> fails closed inside <code>saveWeek</code>; an illegal week cannot be saved, whatever the model says.</td>
+        </tr>
+        <tr>
+          <td>Pain → what exactly?</td>
+          <td>Flag <code>pain</code>: zero Quality, zero intervals, walk/rest/easy only, and no diagnosis sentences anywhere.</td>
+        </tr>
+        <tr>
+          <td>Why not a 16-week calendar?</td>
+          <td>Scope: one week, rebuilt over the same Monday. No history pile (ADR 0011). Simple to trust, simple to show.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      Sources: <a href="../../document/PRD.en.md">PRD</a>,
+      <a href="../../CONTEXT.md">CONTEXT.md vocabulary</a>,
+      <a href="../../docs/adr/">ADRs</a>,
+      <a href="https://langfuse.com/docs/observability/data-model">Langfuse concepts</a>.
+    </p>
+    <footer class="foot">Rehearse: story → demo → questions. Ask the teacher to drill you.</footer>
+  </div>
+</body>
+</html>

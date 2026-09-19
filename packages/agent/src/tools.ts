@@ -1,19 +1,14 @@
-// The five BuildThisWeek verb tools (PRD §7). Tool bodies are thin over
-// @runmax/domain rules; checkWeek fails closed inside saveWeek so no flaky
-// model output can ever ship an illegal Week (ADR 0007/0010/0012/0014).
 import { createTool } from "@anvia/core";
 import { z } from "zod";
 import { checkWeek, mondayOf, parseCues, type Violation, type Week } from "@runmax/domain";
-import type { NotesStore, WeekStore } from "../ports.js";
+import type { LogStore, NotesStore, WeekStore } from "./stores.js";
 
 const KIND = z.enum(["easy", "quality", "rest", "walk"]);
-
 const SessionInput = z.object({
   kind: KIND,
   durationMinutes: z.number().int().min(0).max(600),
   note: z.string().max(280).default(""),
 });
-
 const DraftInput = z.object({
   sessions: z.array(SessionInput).length(7),
   qualityNote: z.string().max(280).default(""),
@@ -23,6 +18,12 @@ export interface WeeksmithStores {
   notes: NotesStore;
   weeks: WeekStore;
 }
+
+export interface ConsultStores {
+  logs: LogStore;
+}
+
+export type Handoff = () => Promise<{ ok: boolean; text: string }>;
 
 export function createWeeksmithTools(stores: WeeksmithStores) {
   const parseLog = createTool({
@@ -40,9 +41,7 @@ export function createWeeksmithTools(stores: WeeksmithStores) {
     inputSchema: z.object({ query: z.string() }),
     execute: async ({ query }) => {
       const hits = await stores.notes.search(query);
-      const notes = await Promise.all(
-        hits.map(async (id) => ({ id, body: await stores.notes.read(id) })),
-      );
+      const notes = await Promise.all(hits.map(async (id) => ({ id, body: await stores.notes.read(id) })));
       return { notes };
     },
   });
@@ -59,7 +58,7 @@ export function createWeeksmithTools(stores: WeeksmithStores) {
         kind: session.kind,
         durationMinutes: session.kind === "rest" ? 0 : session.durationMinutes,
         hard: session.kind === "quality",
-        note: session.kind === "quality" ? session.note || session.note : session.note,
+        note: session.note,
       }));
       return { weekStart, sessions: stamped };
     },
@@ -91,9 +90,7 @@ export function createWeeksmithTools(stores: WeeksmithStores) {
       const week = draft as unknown as Week;
       const violations: Violation[] = checkWeek(week);
       if (violations.length > 0) {
-        throw new Error(
-          `saveWeek blocked: illegal week — ${violations.map((v) => v.code).join(", ")}`,
-        );
+        throw new Error(`saveWeek blocked: illegal week — ${violations.map((v) => v.code).join(", ")}`);
       }
       await stores.weeks.save(week);
       return { saved: true, weekStart: week.weekStart };
@@ -101,6 +98,40 @@ export function createWeeksmithTools(stores: WeeksmithStores) {
   });
 
   return [parseLog, retrieveNotes, draftWeek, checkWeekTool, saveWeekTool];
+}
+
+export function createConsultTools(stores: ConsultStores, handoff: Handoff) {
+  const askCues = createTool({
+    name: "askCues",
+    description:
+      "Read what is already known from the Log so far (pain, walk, recent hard, rough minutes). Call before asking the runner a question they already answered. Empty start is legal.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const log = await stores.logs.load();
+      return { log, cues: parseCues(log) };
+    },
+  });
+
+  const saveLog = createTool({
+    name: "saveLog",
+    description:
+      "Save the consult as the runner's Log: messy, first-person, ID/EN/mixed as they spoke. Empty string is a real save. This is your only artifact; call before buildThisWeek.",
+    inputSchema: z.object({ log: z.string().max(2000) }),
+    execute: async ({ log }) => {
+      await stores.logs.save(log);
+      return { saved: true, length: log.length };
+    },
+  });
+
+  const buildThisWeek = createTool({
+    name: "buildThisWeek",
+    description:
+      "Handoff: run Weeksmith's BuildThisWeek with the saved Log. Only after saveLog. Does not draft Sessions here — Weeksmith drafts, checks, and saves.",
+    inputSchema: z.object({}),
+    execute: async () => handoff(),
+  });
+
+  return [askCues, saveLog, buildThisWeek];
 }
 
 function addDaysISO(iso: string, days: number): string {
