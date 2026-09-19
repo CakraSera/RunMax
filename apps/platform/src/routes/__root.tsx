@@ -9,9 +9,7 @@ export const Route = createRootRoute({
 });
 
 const NAV_TARGETS: NavTarget[] = [
-  { id: "board-week", label: "This Week" },
-  { id: "board-log", label: "Log & Build" },
-  { id: "board-trace", label: "Build trace" },
+  { id: "route:/", label: "This Week" },
   { id: "route:/chat", label: "Plan with AI" },
 ];
 
@@ -76,7 +74,12 @@ function RootComponent() {
         </div>
       </header>
       <Outlet />
-      <NavDrawer open={menuOpen} targets={NAV_TARGETS} onNavigate={navigateToSection} onClose={closeMenu} />
+      <NavDrawer
+        open={menuOpen}
+        targets={NAV_TARGETS}
+        onNavigate={navigateToSection}
+        onClose={closeMenu}
+      />
     </div>
   );
 }
