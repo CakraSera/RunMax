@@ -94,7 +94,7 @@ pnpm --filter @runmax/domain test      # golden fixtures, offline
 pnpm --filter @runmax/agent evals      # PRD §10 fixtures through the model
 pnpm --filter @runmax/agent studio     # Anvia Studio UI at http://127.0.0.1:4021/playground
 pnpm --filter api dev      # server: tsx watch src/index.ts (port 8000)
-pnpm db:up                 # docker compose db on :15433 (api db:up = embedded on :54329)
+pnpm db:up                 # rootless embedded dev db on :54330 (docker compose db = :15434)
 pnpm db:migrate            # prisma migrate via root .env
 pnpm --filter api smoke    # route contract checks incl. auth flow
 ```
