@@ -3,9 +3,9 @@
 // reports pass/fail per case. Run: pnpm --filter @runmax/agent evals
 import { createWeeksmith } from "../agent.js";
 import { GOLDEN_CASES, type EvalCase } from "./cases.js";
-import { connectNotesMcp } from "../notes/client.js";
+import { connectNotesMcp } from "../notes.js";
 import type { Week } from "@runmax/domain";
-import type { WeekStore } from "../ports.js";
+import type { WeekStore } from "../stores.js";
 import { langfuse } from "../tracing.js";
 import { runBuildThisWeek } from "../workflow.js";
 
@@ -72,7 +72,7 @@ async function main() {
     }
   } finally {
     await notes.close();
-    await langfuse.flush();
+    await langfuse.close();
   }
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} passed`);

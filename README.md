@@ -5,7 +5,7 @@ One runner’s **this Week** of running from an optional messy **Log** — shown
 ## Stack
 
 - pnpm workspace — `packages/domain` (shared rules), `packages/agent` (Weeksmith on Anvia), `apps/api` (BE), `apps/platform` (FE)
-- Agent: `@anvia/core` + `@anvia/openai` + `@anvia/langfuse` + `@anvia/mcp`, model `z-ai/glm-5.3-flash` (effort low/high/max, default max)
+- Agent: `@anvia/core` + `@anvia/openai` + `@langfuse/otel` + `@langfuse/tracing` + `@anvia/mcp`, model `z-ai/glm-5.3-flash` (effort low/high/max, default max)
 - FE: Vite 8 · React 19 · TanStack Router · Tailwind CSS 4
 
 ## Get started

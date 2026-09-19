@@ -1,11 +1,8 @@
-// Standalone harness for the Weeksmith agent, like the reference repo's
-// runner-dev: builds the agent with real provider/tracing/MCP and runs one
-// BuildThisWeek from the command line.
 import { createWeeksmith } from "./agent.js";
-import { connectNotesMcp } from "./notes/client.js";
+import { connectNotesMcp } from "./notes.js";
+import { fileWeekStore } from "./stores.js";
 import { langfuse } from "./tracing.js";
 import { runBuildThisWeek } from "./workflow.js";
-import { fileWeekStore } from "./store-file.js";
 
 const log = process.argv.slice(2).join(" ");
 
@@ -22,5 +19,5 @@ try {
   }
 } finally {
   await notes.close();
-  await langfuse.flush();
+  await langfuse.close();
 }

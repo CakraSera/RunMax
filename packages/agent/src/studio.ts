@@ -2,14 +2,12 @@
 // (BuildThisWeek) and ConsultSmith (ConsultThenBuild, ADR 0016). Inspect
 // tools/traces/sessions and drive runs without the Board. One process.
 import { Studio, createInMemoryStudioStore } from "@anvia/studio";
-import { createConsultSmith } from "./agent-consult.js";
-import { createWeeksmith } from "./agent.js";
-import { createLocalMemoryStore } from "./memory-local.js";
-import { connectNotesMcp } from "./notes/client.js";
-import { memoryLogStore } from "./store-log-memory.js";
-import { fileWeekStore } from "./store-file.js";
-import { runBuildThisWeek } from "./workflow.js";
 import type { Agent } from "@anvia/core";
+import { createConsultSmith, createWeeksmith } from "./agent.js";
+import { connectNotesMcp } from "./notes.js";
+import { createLocalMemoryStore, fileWeekStore, memoryLogStore } from "./stores.js";
+import { langfuse } from "./tracing.js";
+import { runBuildThisWeek } from "./workflow.js";
 
 const notes = await connectNotesMcp();
 const weeks = fileWeekStore();
@@ -63,6 +61,7 @@ const shutdown = async () => {
   await studio.shutdown({ timeoutMs: 3000 });
   if (handoffRun) await handoffRun.catch(() => {});
   await notes.close();
+  await langfuse.close();
   process.exit(0);
 };
 process.on("SIGINT", shutdown);

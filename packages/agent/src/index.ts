@@ -1,15 +1,18 @@
-export { createWeeksmith, type CreateWeeksmithOptions } from "./agent.js";
-export { createConsultSmith, type CreateConsultSmithOptions } from "./agent-consult.js";
-export { runBuildThisWeek, type BuildThisWeekInput, type BuildThisWeekResult } from "./workflow.js";
-export { runConsultThenBuild, type ConsultThenBuildInput, type ConsultThenBuildResult, type ConsultDeps } from "./workflow-consult.js";
-export { defaultModel, getModel, openaiClient } from "./providers/openai.js";
-export type { WeeksmithEffort } from "./providers/openai.js";
+export { createWeeksmith, createConsultSmith, BASE_INSTRUCTIONS, CONSULT_INSTRUCTIONS } from "./agent.js";
+export type { CreateWeeksmithOptions, CreateConsultSmithOptions } from "./agent.js";
+export { runBuildThisWeek, runConsultThenBuild } from "./workflow.js";
+export type {
+  BuildThisWeekInput,
+  BuildThisWeekResult,
+  ConsultThenBuildInput,
+  ConsultThenBuildResult,
+  ConsultDeps,
+} from "./workflow.js";
+export { defaultModel, getModel, openaiClient } from "./model.js";
+export type { WeeksmithEffort } from "./model.js";
 export { langfuse, tracing } from "./tracing.js";
-export { BASE_INSTRUCTIONS } from "./prompts/base-instructions.js";
-export { CONSULT_INSTRUCTIONS } from "./prompts/consult-instructions.js";
-export { createNotesServer } from "./notes/server.js";
-export { connectNotesMcp, type NotesMcpConnection } from "./notes/client.js";
-export type { NotesStore, WeekStore, LogStore } from "./ports.js";
-export type { WeeksmithStores } from "./tools/index.js";
-export type { ConsultStores } from "./tools/consult.js";
-export { memoryLogStore } from "./store-log-memory.js";
+export { createNotesServer, connectNotesMcp } from "./notes.js";
+export type { NotesMcpConnection } from "./notes.js";
+export type { NotesStore, WeekStore, LogStore } from "./stores.js";
+export { memoryLogStore, fileWeekStore, createLocalMemoryStore } from "./stores.js";
+export type { WeeksmithStores, ConsultStores, Handoff } from "./tools.js";

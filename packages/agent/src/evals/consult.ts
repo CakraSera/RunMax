@@ -2,13 +2,11 @@
 // consult-pain-log — consult mentions lutut nyeri → saved Log trips parseCues.pain
 // consult-handoff-once — confirm → exactly one BuildThisWeek, no chat drafting
 // consult-no-dx — consult about dada pegal → no diagnosis sentence in output
-import { createConsultSmith } from "../agent-consult.js";
 import { createWeeksmith } from "../agent.js";
-import { connectNotesMcp } from "../notes/client.js";
-import { memoryLogStore } from "../store-log-memory.js";
+import { connectNotesMcp } from "../notes.js";
+import { fileWeekStore, memoryLogStore } from "../stores.js";
 import { langfuse } from "../tracing.js";
-import { runConsultThenBuild } from "../workflow-consult.js";
-import { fileWeekStore } from "../store-file.js";
+import { runConsultThenBuild } from "../workflow.js";
 import type { Week } from "@runmax/domain";
 import { checkWeek, parseCues } from "@runmax/domain";
 
@@ -99,7 +97,7 @@ async function main() {
     }
   } finally {
     await notes.close();
-    await langfuse.flush();
+    await langfuse.close();
   }
 
   const failed = results.filter((r) => !r.pass);
