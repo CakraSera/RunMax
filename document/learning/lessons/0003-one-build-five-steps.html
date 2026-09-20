@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>One build, five steps</title>
+  <link rel="stylesheet" href="../assets/lesson.css" />
+</head>
+<body>
+  <div class="wrap">
+    <nav class="crumbs">
+      <a href="../MISSION.md">Mission</a>
+      ·
+      <a href="0002-explain-your-agent-like-7.html">Lesson 0002</a>
+      ·
+      <a href="../reference/presentation-cheatsheet.html">Cheat sheet</a>
+    </nav>
+    <header class="mast">
+      <p class="kicker">Lesson 0003 · Present RunMax</p>
+      <h1>One build, five steps</h1>
+      <p class="lede">
+        The assembly line your robot runs every single time — and what to say out loud while each step happens in the demo.
+      </p>
+    </header>
+
+    <h2>First, remember (no peeking)</h2>
+    <p>From <a href="0002-explain-your-agent-like-7.html">lesson 0002</a>: the diary is the <strong>Log</strong>, the plan is this week's <strong>7 day-cards</strong>, the teacher is <strong>checkWeek</strong>, the camera is <strong>Langfuse</strong>.</p>
+
+    <h2>The assembly line</h2>
+    <p>Every build is the same five steps, in the same order, exactly once each (<a href="../../document/PRD.en.md">PRD §7</a>):</p>
+    <table>
+      <thead><tr><th>#</th><th>Real name</th><th>Kid version</th><th>In the demo, say…</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><code>parseLog</code></td><td>Read the diary</td><td>“It reads the messy diary and pulls out clues — pain, walking, minutes.”</td></tr>
+        <tr><td>2</td><td><code>retrieveNotes</code></td><td>Visit the library</td><td>“Before inventing anything, it borrows 6 coach notes — looks up, doesn’t make up.”</td></tr>
+        <tr><td>3</td><td><code>draftWeek</code></td><td>Draw the plan</td><td>“Now it draws 7 day-cards, Monday to Sunday.”</td></tr>
+        <tr><td>4</td><td><code>checkWeek</code></td><td>Teacher checks</td><td>“The teacher counts hard days and rest days. Illegal? Blocked — the robot fixes and redraws.”</td></tr>
+        <tr><td>5</td><td><code>saveWeek</code></td><td>Put it on the fridge</td><td>“Only a legal plan gets saved. The model cannot cheat this step.”</td></tr>
+      </tbody>
+    </table>
+    <p class="note">
+      One build = one film in the camera (one Langfuse trace). Each step shows up in the film — that is how you prove the order when someone asks.
+    </p>
+
+    <h2>Do it now (2 minutes)</h2>
+    <ol class="steps">
+      <li>Run: <code>pnpm --filter @runmax/agent runner:dev "Rabu lutut agak nyeri, jalan aja"</code></li>
+      <li>While it runs, narrate steps 1–5 out loud, kid version.</li>
+      <li>When it prints the Week: point at the output — <em>“see? no hard day, because knee.”</em></li>
+      <li>Copy the <code>traceId</code> if your teacher asked for tracing proof (<a href="0001-print-the-trace-id.html">lesson 0001</a>).</li>
+    </ol>
+
+    <h2>Check yourself</h2>
+    <div class="quiz" data-quiz data-correct="a" data-ok="Right — recall from lesson 0002. Pain locks hard days out." data-bad="Pain means zero hard days — recall lesson 0002.">
+      <h3>1. Diary says knee pain. How many hard days may the plan have?</h3>
+      <button type="button" data-choice="a">Zero hard days allowed.</button>
+      <button type="button" data-choice="b">One hard day allowed.</button>
+      <button type="button" data-choice="c">Two hard days allowed.</button>
+      <div class="feedback" aria-live="polite"></div>
+    </div>
+    <div class="quiz" data-quiz data-correct="a" data-ok="Yes — blocked until legal. The teacher never signs bad plans." data-bad="No — it blocks the plan until it is legal.">
+      <h3>2. What does the teacher do with an illegal plan?</h3>
+      <button type="button" data-choice="a">Blocks it until legal.</button>
+      <button type="button" data-choice="b">Ships it with warnings.</button>
+      <button type="button" data-choice="c">Deletes the whole diary.</button>
+      <div class="feedback" aria-live="polite"></div>
+    </div>
+    <div class="quiz" data-quiz data-correct="a" data-ok="Right — step two borrows the coach notes." data-bad="The library visit is step two: retrieveNotes.">
+      <h3>3. Which step visits the six coach notes?</h3>
+      <button type="button" data-choice="a">Step two: retrieveNotes.</button>
+      <button type="button" data-choice="b">Step three: draftWeek.</button>
+      <button type="button" data-choice="c">Step five: saveWeek.</button>
+      <div class="feedback" aria-live="polite"></div>
+    </div>
+
+    <h2>Read this</h2>
+    <p class="source">
+      Primary source: <a href="../../document/PRD.en.md">RunMax PRD §7 — the five verb tools</a> (this repo's own contract).
+      Secondary: <a href="https://langfuse.com/blog/2025-03-llm-agent-observability-tracing-with-langfuse">why one film per run</a>.
+    </p>
+    <p class="ask">
+      Anything fuzzy — “why exactly once each?”, “what if the teacher keeps blocking?” — ask the teacher. That is what I am for.
+    </p>
+    <footer class="foot">
+      Mastered this? Next time: the hard-questions drill from the <a href="../reference/presentation-cheatsheet.html">cheat sheet</a>, out loud.
+    </footer>
+  </div>
+  <script src="../assets/quiz.js"></script>
+</body>
+</html>

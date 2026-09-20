@@ -36,7 +36,8 @@ function ChatPage() {
             autoScroll
           >
             <Thread.Empty className="m-auto max-w-[85%] text-balance text-center text-sm text-muted">
-              Ask Weeksmith to build this week from your Log.
+              Chat with ConsultSmith — tell it about your running week and it
+              will build this week&apos;s plan.
             </Thread.Empty>
             <Thread.Messages className="flex flex-col gap-3">
               {(message) => (
@@ -80,7 +81,7 @@ function ChatPage() {
             <Composer.Input
               minRows={1}
               maxRows={6}
-              placeholder="Message Weeksmith..."
+              placeholder="Message ConsultSmith..."
               className="flex-1 rounded-2xl border border-border bg-surface px-4 py-2.5 text-sm leading-relaxed text-ink outline-none placeholder:text-faint"
             />
             {chat.status === "streaming" ? (

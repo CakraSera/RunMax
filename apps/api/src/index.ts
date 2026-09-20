@@ -11,6 +11,7 @@ import { weekRouter } from "./modules/week/router.js";
 import { authRoute } from "./modules/auth/route.js";
 import { chatRouter } from "./modules/chat/router.js";
 import { shutdownChatAgent } from "./modules/chat/agent.js";
+import { shutdownConsultAgent } from "./modules/chat/agent-consult.js";
 import { langfuse } from "@runmax/agent";
 
 const app = new Hono()
@@ -38,6 +39,7 @@ serve(
 
 const shutdown = async () => {
   await shutdownChatAgent();
+  await shutdownConsultAgent();
   await langfuse.close();
   process.exit(0);
 };
