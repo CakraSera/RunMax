@@ -1,109 +1,92 @@
-// Consult evals (PRD §10 fixtures 11–13): drive the real ConsultSmith.
-// consult-pain-log — consult mentions lutut nyeri → saved Log trips parseCues.pain
-// consult-handoff-once — confirm → exactly one BuildThisWeek, no chat drafting
-// consult-no-dx — consult about dada pegal → no diagnosis sentence in output
+// Consult evals (PRD §10 fixtures 11–13), v2: cases live in cases.ts, this
+// file is mechanics — drive ConsultThenBuild, apply the rule oracle, report.
+// Gate = oracle. Advisory scores publish to Langfuse but never flip verdicts.
+import { runEvalSuite, evalExitCode, type EvalSuiteResult } from "@anvia/core/evals";
 import { createWeeksmith } from "../agent.js";
-import { connectNotesMcp } from "../notes.js";
-import { fileWeekStore, memoryLogStore } from "../stores.js";
 import { langfuse } from "../tracing.js";
+import { connectNotesMcp } from "../notes.js";
+import { evalReporter } from "./reporter.js";
+import { fileWeekStore, memoryLogStore } from "../stores.js";
 import { runConsultThenBuild } from "../workflow.js";
-import type { Week } from "@runmax/domain";
-import { checkWeek, parseCues } from "@runmax/domain";
+import { CONSULT_CASES } from "./cases.js";
 
-const DIAGNOSIS = /\b(you|kamu|anda)\s+(have|ve got|mengalami|memiliki|punya)\b|\bdiagnos/i;
+const CASE_TIMEOUT_MS = Number(process.env.EVAL_CASE_TIMEOUT_MS ?? 240_000);
 
-interface CaseResult {
-  id: string;
-  pass: boolean;
-  detail: string;
-  ms: number;
-}
-
-async function runCase(
-  notes: Awaited<ReturnType<typeof connectNotesMcp>>,
-  id: string,
-  transcript: string,
-  assert: (log: string, week: Week | null, result: { ok: boolean; error?: string }) => true | string,
-): Promise<CaseResult> {
-  const started = Date.now();
-  const logs = memoryLogStore();
-  const weeks = fileWeekStore();
-  const weeksmith = createWeeksmith({ stores: { notes, weeks }, effort: "low" });
-  try {
-    const result = await runConsultThenBuild(
-      { consultStores: { logs }, weeksmith, weeksmithStores: { notes, weeks }, effort: "low" },
-      { transcript },
-    );
-    const verdict = assert(result.log, result.week, { ok: result.ok, error: result.error });
-    return { id, pass: verdict === true, detail: verdict === true ? "ok" : String(verdict), ms: Date.now() - started };
-  } catch (error) {
-    return {
-      id,
-      pass: false,
-      detail: error instanceof Error ? error.message.slice(0, 200) : String(error).slice(0, 200),
-      ms: Date.now() - started,
-    };
-  }
+interface ConsultOutput {
+  reply: string;
+  log: string;
+  ok: boolean;
+  error?: string;
+  weekStart: string | null;
 }
 
 async function main() {
   const only = process.argv.slice(2);
-  const notes = await connectNotesMcp();
-  const results: CaseResult[] = [];
+  const cases = only.length > 0 ? CONSULT_CASES.filter((c) => only.includes(c.id)) : CONSULT_CASES;
+  if (cases.length === 0) {
+    console.error(`no cases match: ${only.join(", ")}`);
+    process.exit(2);
+  }
 
-  const cases: Array<{ id: string; run: () => Promise<CaseResult> }> = [
-    {
-      id: "consult-pain-log",
-      run: () =>
-        runCase(notes, "consult-pain-log", "lutut agak nyeri, jalan aja", (log, week, r) => {
-          if (r.ok !== true) return `consult/build failed: ${r.error}`;
-          if (parseCues(log).pain !== true) return `saved Log did not trip pain gate: "${log}"`;
-          if (!week) return "no week after handoff";
-          const violations = checkWeek(week);
-          if (violations.length > 0) return `illegal week: ${violations.map((v) => v.code).join(",")}`;
-          if (week.sessions.some((s) => s.kind === "quality")) return "quality shipped despite pain Log";
-          return true;
-        }),
-    },
-    {
-      id: "consult-handoff-once",
-      run: () =>
-        runCase(notes, "consult-handoff-once", "semuanya baik, 20 menit easy saja", (_log, week, r) => {
-          if (r.ok !== true) return `consult/build failed: ${r.error}`;
-          if (!week) return "no week after handoff";
-          if (week.sessions.length !== 7) return `got ${week.sessions.length} sessions`;
-          return true;
-        }),
-    },
-    {
-      id: "consult-no-dx",
-      run: () =>
-        runCase(notes, "consult-no-dx", "dada pegal abis lari", (log, week, r) => {
-          if (parseCues(log).pain !== true) return `saved Log missed pain: "${log}"`;
-          if (week && week.sessions.some((s) => DIAGNOSIS.test(s.note))) return "diagnosis in shipped notes";
-          if (r.error && DIAGNOSIS.test(r.error)) return "diagnosis in consult output";
-          return true;
-        }),
-    },
-  ];
+  const notes = await connectNotesMcp();
 
   try {
-    for (const c of cases) {
-      if (only.length > 0 && !only.includes(c.id)) continue;
-      process.stdout.write(`eval ${c.id} ... `);
-      const r = await c.run();
-      console.log(r.pass ? "PASS" : `FAIL (${r.detail})`);
-      results.push(r);
+    const suite = await runEvalSuite<ConsultOutput, ConsultOutput, (typeof CONSULT_CASES)[number]>({
+      name: "consultsmith-evals",
+      cases: cases.map((c) => ({
+        id: c.id,
+        input: { reply: "", log: c.transcript, ok: false, weekStart: null },
+        metadata: { category: c.category, expect: c.expect },
+      })),
+      target: async (input) => {
+        const logs = memoryLogStore();
+        const weeks = fileWeekStore();
+        const weeksmith = createWeeksmith({ stores: { notes, weeks }, effort: "low" });
+        const result = await runConsultThenBuild(
+          { consultStores: { logs }, weeksmith, weeksmithStores: { notes, weeks }, effort: "low" },
+          { transcript: input.log },
+        );
+        return {
+          reply: result.ok
+            ? `Week built and saved: ${result.week?.weekStart}`
+            : `Build failed: ${result.error ?? "unknown"}`,
+          log: result.log,
+          ok: result.ok,
+          error: result.error,
+          weekStart: result.week?.weekStart ?? null,
+        };
+      },
+      metrics: [],
+      concurrency: 1,
+      caseTimeoutMs: CASE_TIMEOUT_MS,
+      failFast: false,
+      reporters: [evalReporter],
+      reporterErrorPolicy: "collect",
+    });
+
+    let failures = 0;
+    for (const r of suite.results) {
+      const c = cases.find((x) => x.id === r.case.id)!;
+      const out = r.output;
+      const verdict =
+        out === undefined
+          ? `target failed: ${stringify(r.targetError)}`
+          : c.assert(out.log, null, { ok: out.ok, error: out.error });
+      const pass = verdict === true;
+      if (!pass) failures++;
+      console.log(`eval ${r.case.id} ... ${pass ? "PASS" : `FAIL (${verdict})`}`);
     }
+
+    console.log(`\n${suite.results.length - failures}/${suite.results.length} passed`);
+    process.exit(evalExitCode(suite));
   } finally {
     await notes.close();
     await langfuse.close();
   }
+}
 
-  const failed = results.filter((r) => !r.pass);
-  console.log(`\n${results.length - failed.length}/${results.length} passed`);
-  if (failed.length > 0) process.exit(1);
-  process.exit(0);
+function stringify(error: unknown): string {
+  return error instanceof Error ? error.message.slice(0, 200) : String(error).slice(0, 200);
 }
 
 await main();
