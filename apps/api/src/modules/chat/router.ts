@@ -1,15 +1,17 @@
-// GET /api/chat — history. POST /api/chat — stream. One session (`demo`),
-// same shape as health-buddy: fetch history, then useChat against this URL.
+// /api/chat — ConsultSmith chat (health-buddy shape): GET returns the
+// memory transcript, POST runs ConsultSmith with `session` scope so history
+// loads and saves through the Prisma memory store. One session (`demo`).
+// ADR 0016: interview → saveLog → confirm → buildThisWeek handoff.
 import { agentToClientStream } from "@anvia/client";
 import type { ClientStreamEvent, ClientStreamRequest, UIMessage } from "@anvia/client";
 import { createClientStreamResponse } from "@anvia/server";
-import { Hono } from "hono";
-import { getAgent } from "./agent.js";
+import type { Agent } from "@anvia/core/agent";
+import { Hono, type Context } from "hono";
+import { getConsultAgent, loadHistory } from "./agent-consult.js";
 import { RequestRejected, readChatRequest } from "../../lib/request.js";
-import { DEMO_USER_ID, recordTurn } from "./store.js";
-import { prisma } from "../../utils/prisma.js";
 
 const SESSION_ID = "demo";
+const USER_ID = "demo";
 
 function tappedClientStream(
   stream: AsyncIterable<ClientStreamEvent>,
@@ -24,40 +26,32 @@ function tappedClientStream(
   return run();
 }
 
-function eventsToStream(events: readonly ClientStreamEvent[]): AsyncIterable<ClientStreamEvent> {
-  async function* run() {
-    yield* events;
-  }
-  return run();
+async function resolveAgent(): Promise<Agent | undefined> {
+  return getConsultAgent().catch((error: unknown) => {
+    console.error("[chat] agent unavailable", error);
+    return undefined;
+  });
 }
 
 export const chatRouter = new Hono()
   .get("/", async (c) => {
-    const thread = await prisma.thread.findFirst({
-      where: { id: SESSION_ID, userId: DEMO_USER_ID },
-      select: { id: true },
+    const history = await loadHistory().catch((error: unknown) => {
+      console.error("[chat] history unavailable", error);
+      return [];
     });
-    if (thread === null) return c.json({ messages: [] });
-    const turns = await prisma.turn.findMany({
-      where: { threadId: thread.id },
-      orderBy: { seq: "asc" },
-    });
-    const messages: UIMessage[] = [];
-    for (const turn of turns) {
-      const key = `${turn.seq}`;
-      messages.push({
-        id: `u${key}`,
-        role: "user",
-        parts: [{ id: `ut${key}`, type: "text", text: turn.input }],
-      });
-      if (!turn.failed && turn.output !== null) {
-        messages.push({
-          id: `a${key}`,
-          role: "assistant",
-          parts: [{ id: `at${key}`, type: "text", text: turn.output }],
-        });
-      }
-    }
+    // Memory returns provider-neutral Messages; the UI wants UIMessages
+    // with text parts. Tool-call/tool-result turns become empty text here,
+    // so drop them instead of shipping blanks the request validator or the
+    // model would choke on.
+    const messages: UIMessage[] = history
+      .map((message, index) => ({
+        id: `m${index}`,
+        role: message.role === "assistant" || message.role === "user" ? message.role : "assistant",
+        parts: [{ id: `p${index}`, type: "text", text: textOf(message.content) }] as [
+          { id: string; type: "text"; text: string },
+        ],
+      }))
+      .filter((message) => message.parts.some((part) => part.type === "text" && part.text.length > 0));
     return c.json({ messages });
   })
   .post("/", async (c) => {
@@ -72,17 +66,21 @@ export const chatRouter = new Hono()
       return c.text("Invalid chat request", 400);
     }
 
-    const agent = await getAgent().catch((error: unknown) => {
-      console.error("[chat] agent unavailable", error);
-      return undefined;
-    });
+    const agent = await resolveAgent();
     if (agent === undefined) {
       return c.json({ error: "The assistant is not available right now." }, 503);
     }
 
+    // Memory-backed run: `session` loads history from the store; the last
+    // user text is the prompt (docs.anvia.dev/sdk/memory#2).
+    const prompt = lastUserText(body.messages);
     const clientStream = agentToClientStream({
-      events: agent.stream({ messages: body.messages }),
-      metadata: { userId: DEMO_USER_ID },
+      events: agent.stream({
+        prompt,
+        session: { sessionId: SESSION_ID, userId: USER_ID },
+        trace: { name: "ConsultChat", sessionId: SESSION_ID, userId: USER_ID },
+      }),
+      metadata: { userId: USER_ID },
       mapError: () => ({
         message: "The model request failed.",
         code: "MODEL_REQUEST_FAILED",
@@ -90,22 +88,8 @@ export const chatRouter = new Hono()
       }),
     });
 
-    const observedEvents: ClientStreamEvent[] = [];
-    const tapped = tappedClientStream(clientStream, async (event) => {
-      observedEvents.push(event);
-      if (event.type !== "run_end") return;
-      const events = [...observedEvents];
-      observedEvents.length = 0;
-      await recordTurn({
-        userId: DEMO_USER_ID,
-        threadId: SESSION_ID,
-        messages: body.messages,
-        stream: eventsToStream(events),
-      });
-    });
-
     return createClientStreamResponse({
-      events: tapped,
+      events: tappedClientStream(clientStream, () => {}),
       format: "jsonl",
       headers: {
         "content-security-policy": "default-src 'none'",
@@ -114,3 +98,29 @@ export const chatRouter = new Hono()
       },
     });
   });
+
+function lastUserText(messages: readonly { role: string; content: unknown }[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (message === undefined || message.role !== "user") continue;
+    if (typeof message.content === "string") return message.content;
+    if (Array.isArray(message.content)) {
+      return message.content
+        .filter((part) => (part as { type?: string; text?: string }).type === "text")
+        .map((part) => (part as { text?: string }).text ?? "")
+        .join("");
+    }
+  }
+  return "";
+}
+
+function textOf(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter((part) => (part as { type?: string }).type === "text")
+      .map((part) => (part as { text?: string }).text ?? "")
+      .join("");
+  }
+  return "";
+}

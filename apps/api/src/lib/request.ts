@@ -8,6 +8,7 @@ const MAX_BODY_BYTES = 64_000
 const MAX_MESSAGES = 40
 const MAX_PARTS = 16
 const MAX_TEXT_LENGTH = 4_000
+const MAX_REASONING_LENGTH = 32_000
 
 /** A Request the route must return verbatim (413/400 from validation). */
 export class RequestRejected extends Error {
@@ -73,15 +74,18 @@ export async function readChatRequest(request: Request): Promise<ClientStreamReq
 function isTextConversation(message: Message): boolean {
   if (message.role !== 'user' && message.role !== 'assistant') return false
   if (typeof message.content === 'string') {
-    return message.content.length > 0 && message.content.length <= MAX_TEXT_LENGTH
+    // Empty strings are allowed: the UI can echo blank assistant placeholders.
+    // They carry no context, but rejecting them breaks replay after a reload.
+    return message.content.length <= MAX_TEXT_LENGTH
   }
   return (
     message.content.length <= MAX_PARTS &&
     message.content.every(
       (part) =>
-        part.type === 'text' &&
-        part.text.length > 0 &&
-        part.text.length <= MAX_TEXT_LENGTH,
+        // Reasoning parts are display-only and routinely exceed the text cap
+        // (the model thinks in long chains); only text content is bounded.
+        (part.type === 'reasoning' && (part.text?.length ?? 0) <= MAX_REASONING_LENGTH) ||
+        (part.type === 'text' && part.text.length <= MAX_TEXT_LENGTH),
     )
   )
 }
