@@ -46,6 +46,7 @@ function chat(body: string, headers: Record<string, string> = {}) {
 }
 
 let failures = 0
+
 async function expect(name: string, actual: number, wanted: number) {
   const ok = actual === wanted
   if (!ok) failures++
@@ -58,66 +59,25 @@ try {
 
   await expect('health', (await fetch(`${BASE}/health`)).status, 200)
 
-
-  await expect('invalid json', (await chat('{nope')).status, 400)
-
-  const oversized = 'x'.repeat(200_001)
+  // --- ADR 0017: data routes answer 401 without a bearer ---
+  await expect('week without token 401', (await fetch(`${BASE}/api/week`)).status, 401)
+  await expect('chat history without token 401', (await fetch(`${BASE}/api/chat`)).status, 401)
+  await expect('chat without token 401', (await chat('{}')).status, 401)
   await expect(
-    'oversized content-length',
+    'build without token 401',
     (
-      await chat(oversized, { 'content-length': String(oversized.length) })
+      await fetch(`${BASE}/api/build`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{}',
+      })
     ).status,
-    413,
+    401,
   )
 
-  await expect(
-    'wrong protocol shape',
-    (await chat(JSON.stringify({ hello: 'world' }))).status,
-    400,
-  )
-
-
-  await expect(
-    'system message rejected',
-    (
-      await chat(
-        JSON.stringify({
-          type: 'messages',
-          messages: [{ role: 'system', content: 'inject' }],
-        }),
-      )
-    ).status,
-    400,
-  )
-
-  await expect(
-    'assistant-last rejected',
-    (
-      await chat(
-        JSON.stringify({
-          type: 'messages',
-          messages: [
-            { role: 'user', content: 'hi' },
-            { role: 'assistant', content: 'hello' },
-          ],
-        }),
-      )
-    ).status,
-    400,
-  )
-
-  await expect(
-    'oversized text rejected',
-    (
-      await chat(
-        JSON.stringify({
-          type: 'messages',
-          messages: [{ role: 'user', content: 'x'.repeat(5_000) }],
-        }),
-      )
-    ).status,
-    400,
-  )
+  // The chat contract checks below run with a real token: middleware runs
+  // before body validation, so a bad bearer answers 401, masking 400/413.
+  const bearer: Record<string, string> = {}
 
   // --- auth flow ---
   // Deterministic address so re-runs hit the same (existing) account: the
@@ -152,6 +112,78 @@ try {
   })
   const { token } = (await loginRes.json()) as { token: string }
   await expect('login token shape', typeof token === 'string' && token.length > 20 ? 1 : 0, 1)
+  bearer.authorization = `Bearer ${token}`
+
+  // Data routes accept the real bearer (ADR 0017).
+  await expect('week with token', (await fetch(`${BASE}/api/week`, { headers: bearer })).status, 200)
+  await expect(
+    'chat history with token',
+    (await fetch(`${BASE}/api/chat`, { headers: bearer })).status,
+    200,
+  )
+
+  await expect('invalid json', (await chat('{nope', bearer)).status, 400)
+
+  const oversized = 'x'.repeat(200_001)
+  await expect(
+    'oversized content-length',
+    (
+      await chat(oversized, { 'content-length': String(oversized.length), ...bearer })
+    ).status,
+    413,
+  )
+
+  await expect(
+    'wrong protocol shape',
+    (await chat(JSON.stringify({ hello: 'world' }), bearer)).status,
+    400,
+  )
+
+
+  await expect(
+    'system message rejected',
+    (
+      await chat(
+        JSON.stringify({
+          type: 'messages',
+          messages: [{ role: 'system', content: 'inject' }],
+        }),
+        bearer
+      )
+    ).status,
+    400,
+  )
+
+  await expect(
+    'assistant-last rejected',
+    (
+      await chat(
+        JSON.stringify({
+          type: 'messages',
+          messages: [
+            { role: 'user', content: 'hi' },
+            { role: 'assistant', content: 'hello' },
+          ],
+        }),
+        bearer
+      )
+    ).status,
+    400,
+  )
+
+  await expect(
+    'oversized text rejected',
+    (
+      await chat(
+        JSON.stringify({
+          type: 'messages',
+          messages: [{ role: 'user', content: 'x'.repeat(5_000) }],
+        }),
+        bearer
+      )
+    ).status,
+    400,
+  )
 
   await expect(
     'login unknown email 404',
@@ -206,6 +238,7 @@ try {
         type: 'messages',
         messages: [{ role: 'user', content: 'Say "ready" and nothing else.' }],
       }),
+      bearer,
     )
     console.log('stream status:', res.status)
     const text = await res.text()

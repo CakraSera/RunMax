@@ -5,17 +5,8 @@ import EditSheet from "@/components/EditSheet";
 import SessionCard from "@/components/SessionCard";
 import TraceSection from "@/components/TraceSection";
 import WorkflowChips from "@/components/WorkflowChips";
-import {
-  checkWeek,
-  DAY_SHORT,
-  formatRange,
-  humanizeViolation,
-  mondayOf,
-  weekSummary,
-  type Kind,
-  type ViolationCode,
-  type Week,
-} from "@runmax/domain";
+import { checkWeek, DAY_SHORT, formatRange, humanizeViolation, mondayOf, weekSummary, type Kind, type ViolationCode, type Week } from "@runmax/domain";
+import { requireAuth } from "@/lib/auth";
 import { buildWeek, fetchWeek, patchWeek } from "@/lib/board-api";
 import type { Span, ToolStatus } from "@/lib/weeksmith";
 
@@ -26,6 +17,7 @@ interface BannerState {
 
 export const Route = createFileRoute("/")({
   component: Board,
+  beforeLoad: requireAuth,
 });
 
 function Board() {

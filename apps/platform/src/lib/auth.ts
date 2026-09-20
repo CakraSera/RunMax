@@ -1,5 +1,6 @@
 // Auth client for the RunMax API (/auth/register, /auth/login, /auth/me).
 // JWT bearer in localStorage; Me shape mirrors apps/api AuthMeSchema.
+import { redirect } from "@tanstack/react-router";
 import { useSyncExternalStore } from "react";
 
 const API_BASE = "http://localhost:8000";
@@ -59,6 +60,12 @@ export function useMe(): Me | null {
 
 export function isAuthenticated(): boolean {
   return me !== null && getToken() !== null;
+}
+
+/** Bearer header for API calls; empty object when signed out. */
+export function authHeaders(): Record<string, string> {
+  const token = getToken();
+  return token ? { authorization: `Bearer ${token}` } : {};
 }
 
 // --- API calls ---
@@ -135,4 +142,30 @@ export function signOut(): void {
 /** Restore the session on app boot; safe to fire-and-forget. */
 export function restoreSession(): void {
   if (getToken() && !me) fetchMe().catch(() => undefined);
+}
+
+// --- route guard (ADR 0017) ---
+
+/** True while a fetchMe round-trip for the guard is in flight. */
+let restoring: Promise<void> | null = null;
+
+/**
+ * Route `beforeLoad` guard: the Board and Plan with AI are account data.
+ * No token, or a token the server rejects → /signin. A valid-but-unrestored
+ * token is restored once, in flight-shared, before the route renders.
+ */
+export async function requireAuth(): Promise<void> {
+  const token = getToken();
+  if (!token) throw redirect({ to: "/signin" });
+  if (me) return;
+  restoring ??= fetchMe()
+    .then(() => undefined)
+    .catch(() => {
+      localStorage.removeItem(TOKEN_KEY);
+      throw redirect({ to: "/signin" });
+    })
+    .finally(() => {
+      restoring = null;
+    });
+  await restoring;
 }

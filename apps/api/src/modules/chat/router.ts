@@ -1,17 +1,20 @@
 // /api/chat — ConsultSmith chat (health-buddy shape): GET returns the
 // memory transcript, POST runs ConsultSmith with `session` scope so history
-// loads and saves through the Prisma memory store. One session (`demo`).
-// ADR 0016: interview → saveLog → confirm → buildThisWeek handoff.
+// loads and saves through the Prisma memory store. Per authenticated user
+// (ADR 0017). ADR 0016: interview → saveLog → confirm → buildThisWeek
+// handoff.
 import { agentToClientStream } from "@anvia/client";
 import type { ClientStreamEvent, ClientStreamRequest, UIMessage } from "@anvia/client";
 import { createClientStreamResponse } from "@anvia/server";
 import type { Agent } from "@anvia/core/agent";
 import { Hono, type Context } from "hono";
 import { getConsultAgent, loadHistory } from "./agent-consult.js";
+import { checkAuthorized } from "../auth/middleware.js";
 import { RequestRejected, readChatRequest } from "../../lib/request.js";
 
-const SESSION_ID = "demo";
-const USER_ID = "demo";
+function userIdOf(c: Context): string {
+  return c.get("user").id;
+}
 
 function tappedClientStream(
   stream: AsyncIterable<ClientStreamEvent>,
@@ -26,16 +29,19 @@ function tappedClientStream(
   return run();
 }
 
-async function resolveAgent(): Promise<Agent | undefined> {
-  return getConsultAgent().catch((error: unknown) => {
+async function resolveAgent(userId: string): Promise<Agent | undefined> {
+  return getConsultAgent(userId).catch((error: unknown) => {
     console.error("[chat] agent unavailable", error);
     return undefined;
   });
 }
 
 export const chatRouter = new Hono()
+  // ADR 0017: chat history and the handoff Week belong to one account.
+  .use("*", checkAuthorized)
   .get("/", async (c) => {
-    const history = await loadHistory().catch((error: unknown) => {
+    const userId = userIdOf(c);
+    const history = await loadHistory(userId).catch((error: unknown) => {
       console.error("[chat] history unavailable", error);
       return [];
     });
@@ -66,21 +72,23 @@ export const chatRouter = new Hono()
       return c.text("Invalid chat request", 400);
     }
 
-    const agent = await resolveAgent();
+    const agent = await resolveAgent(userIdOf(c));
     if (agent === undefined) {
       return c.json({ error: "The assistant is not available right now." }, 503);
     }
 
     // Memory-backed run: `session` loads history from the store; the last
-    // user text is the prompt (docs.anvia.dev/sdk/memory#2).
+    // user text is the prompt (docs.anvia.dev/sdk/memory#2). Session is
+    // scoped to the account (ADR 0017): sessionId = userId isolates both.
     const prompt = lastUserText(body.messages);
+    const userId = userIdOf(c);
     const clientStream = agentToClientStream({
       events: agent.stream({
         prompt,
-        session: { sessionId: SESSION_ID, userId: USER_ID },
-        trace: { name: "ConsultChat", sessionId: SESSION_ID, userId: USER_ID },
+        session: { sessionId: userId, userId },
+        trace: { name: "ConsultChat", sessionId: userId, userId },
       }),
-      metadata: { userId: USER_ID },
+      metadata: { userId },
       mapError: () => ({
         message: "The model request failed.",
         code: "MODEL_REQUEST_FAILED",

@@ -1,7 +1,8 @@
 // Server-owned chat agent: ConsultSmith (ADR 0016) with durable memory
 // (docs.anvia.dev/sdk/memory). Same wiring as health-buddy: notes MCP +
-// Prisma memory store for user `demo`. The handoff runs the real
-// BuildThisWeek (saveWeek fails closed), so chat can ship a saved Week.
+// Prisma memory store, keyed per authenticated user (ADR 0017). The handoff
+// runs the real BuildThisWeek (saveWeek fails closed), so chat can ship a
+// saved Week.
 import type { Agent } from "@anvia/core/agent";
 import { PrismaMemoryStore } from "@anvia/memory-prisma";
 import {
@@ -15,31 +16,43 @@ import {
 import { prisma } from "../../utils/prisma.js";
 import { prismaWeekStore } from "../week/store.js";
 
-const SESSION_ID = "demo";
-const USER_ID = "demo";
-
-let notes: NotesMcpConnection | undefined;
-let cached: Agent | undefined;
+let notesPromise: Promise<NotesMcpConnection> | undefined;
 let closed = false;
+
+async function sharedNotes(): Promise<NotesMcpConnection> {
+  if (closed) throw new Error("chat agent is shut down");
+  notesPromise ??= connectNotesMcp();
+  return notesPromise;
+}
 
 export function memoryStore() {
   return new PrismaMemoryStore({ client: prisma });
 }
 
-export async function getConsultAgent(): Promise<Agent> {
-  if (cached) return cached;
-  if (closed) throw new Error("chat agent is shut down");
+// Consult's Log is the last saveLog call in the runner's session — a
+// process-local mirror of the memory transcript's artifact, per user.
+const logs = new Map<string, string>();
 
-  notes = await connectNotesMcp();
-  const weeks = prismaWeekStore();
-  const weeksmith = createWeeksmith({ stores: { notes, weeks } });
-
-  cached = createConsultSmith({
-    stores: { logs: memoryLog() },
+// The Handoff contract carries no identity, and the tool set captures its
+// stores at construction — so the agent is wired per request with the
+// caller's own Week store (ADR 0017). Wiring is cheap; the notes MCP
+// connection is shared.
+export async function getConsultAgent(userId: string): Promise<Agent> {
+  const notes = await sharedNotes();
+  return createConsultSmith({
+    stores: {
+      logs: {
+        save: async (log) => {
+          logs.set(userId, log);
+        },
+        load: async () => logs.get(userId) ?? "",
+      },
+    },
     memory: { store: memoryStore() },
     handoff: async () => {
-      const log = await memoryLog().load();
-      const result = await runBuildThisWeek(weeksmith, { notes: notes!, weeks }, { log });
+      const weeks = prismaWeekStore(userId);
+      const weeksmith = createWeeksmith({ stores: { notes, weeks } });
+      const result = await runBuildThisWeek(weeksmith, { notes, weeks }, { log: logs.get(userId) ?? "" });
       return {
         ok: result.ok,
         text: result.ok
@@ -48,32 +61,17 @@ export async function getConsultAgent(): Promise<Agent> {
       };
     },
   });
-  return cached;
 }
 
-// Consult's Log is the last saveLog call in the session — a process-local
-// mirror of the memory transcript's artifact (PRD v1: one `demo` user).
-let currentLog = "";
-function memoryLog() {
-  return {
-    async save(log: string) {
-      currentLog = log;
-    },
-    async load() {
-      return currentLog;
-    },
-  };
-}
-
-export async function loadHistory() {
-  return memoryStore().load({ scope: { sessionId: SESSION_ID, userId: USER_ID } });
+export async function loadHistory(userId: string) {
+  return memoryStore().load({ scope: { sessionId: userId, userId } });
 }
 
 export async function shutdownConsultAgent(): Promise<void> {
   closed = true;
-  cached = undefined;
-  const connection = notes;
-  notes = undefined;
+  const pending = notesPromise;
+  notesPromise = undefined;
+  const connection = await pending?.catch(() => undefined);
   await connection?.close();
   await langfuse.flush();
 }

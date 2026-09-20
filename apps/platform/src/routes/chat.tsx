@@ -7,14 +7,18 @@ import {
   ThreadPrimitive as Thread,
 } from "@anvia/react-ui";
 import { createFileRoute } from "@tanstack/react-router";
+import { authHeaders, requireAuth } from "@/lib/auth";
 
 const API = "http://localhost:8000/api/chat";
-const transport = createHttpClientTransport({ endpoint: API, format: "jsonl" });
+// The header function is evaluated per request, so sign-in/sign-out is
+// always reflected in the stream call (ADR 0017).
+const transport = createHttpClientTransport({ endpoint: API, format: "jsonl", headers: authHeaders });
 
 export const Route = createFileRoute("/chat")({
   component: ChatPage,
+  beforeLoad: requireAuth,
   loader: async () => {
-    const res = await fetch(API);
+    const res = await fetch(API, { headers: authHeaders() });
     const data = (await res.json()) as { messages?: unknown };
     return Array.isArray(data.messages) ? data.messages : [];
   },
