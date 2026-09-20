@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Check evals in Langfuse</title>
+  <link rel="stylesheet" href="../assets/lesson.css" />
+</head>
+<body>
+  <div class="wrap">
+    <nav class="crumbs">
+      <a href="../MISSION.md">Mission</a>
+      ·
+      <a href="../reference/presentation-cheatsheet.html">Cheat sheet</a>
+      ·
+      <a href="0003-one-build-five-steps.html">Lesson 0003</a>
+    </nav>
+    <header class="mast">
+      <p class="kicker">Lesson 0005 · Evals in Langfuse</p>
+      <h1>Check evals in Langfuse, step by step</h1>
+      <p class="lede">
+        The report card has two halves: the terminal tells you <em>pass/fail</em>, Langfuse shows you <em>how each robot ran</em>. This lesson walks both.
+      </p>
+    </header>
+
+    <h2>First, know what you will see</h2>
+    <p>
+      Each eval case is <strong>one Langfuse trace</strong> named <code>BuildThisWeek</code> (board evals) or <code>ConsultThenBuild</code> (consult evals).
+      Inside every trace: the <code>AGENT</code> root, one <code>GENERATION</code> per model turn, one <code>TOOL</code> per tool call
+      (<code>parseLog</code>, <code>retrieveNotes</code>, <code>draftWeek</code>, <code>checkWeek</code>, <code>saveWeek</code>).
+      Evals run at <code>effort: "low"</code> — that is why they are faster and cheaper than a real build.
+    </p>
+    <p class="note">
+      The pass/fail verdict lives in the terminal, not Langfuse: the oracle is pure rules (<code>checkWeek</code>) checked in-process.
+      Langfuse is the <em>evidence</em> — the film of every run behind each verdict.
+      (<a href="https://langfuse.com/docs/evaluation/overview">Langfuse evaluation overview</a>.)
+    </p>
+
+    <h2>Part 1 — run the evals</h2>
+    <ol class="steps">
+      <li>Terminal: <code>pnpm --filter @runmax/agent evals</code> — 10 board cases, ~4 min (real model).</li>
+      <li>Read the lines as they finish: <code>eval pain-lutut ... PASS</code>. Expect <code>10/10 passed</code>.</li>
+      <li>Consult evals: <code>pnpm --filter @runmax/agent evals:consult</code> — 3 cases. Expect <code>3/3 passed</code>.</li>
+      <li>One case only (fast loop): append its id — e.g. <code>pnpm --filter @runmax/agent evals pain-lutut</code>.</li>
+    </ol>
+    <p>Every case id is a fixture name you can quote in the presentation: <code>happy-en</code>, <code>pain-lutut</code>, <code>two-hard-draft</code>, <code>no-rest</code>, <code>empty-log</code>, <code>quality-no-pace</code>, <code>mixed-id-en</code>, <code>board-has-seven</code>, <code>second-build-overwrite</code>, <code>sakit-no-dx</code>.</p>
+
+    <h2>Part 2 — find the runs in Langfuse</h2>
+    <ol class="steps">
+      <li>Open <strong>us.cloud.langfuse.com</strong> → your project → <strong>Traces</strong>.</li>
+      <li>Time filter: <strong>last 24 hours</strong>. Clear every other filter (environment, type, tags).</li>
+      <li>Search name <code>BuildThisWeek</code> — you will see a fresh cluster, one trace per eval case, all with sessionId <code>demo</code>.</li>
+      <li>Open one trace, e.g. <code>pain-lutut</code>'s run. Check the hierarchy:
+        <ul>
+          <li>Root type <strong>AGENT</strong> (not Span — lesson <a href="0001-print-the-trace-id.html">0001</a> explains why this can go wrong).</li>
+          <li><code>GENERATION</code> turns showing model <code>z-ai/glm-5.3-flash</code> and token usage.</li>
+          <li><code>TOOL</code> children in order: <code>parseLog</code> → <code>retrieveNotes</code> → <code>draftWeek</code> → <code>checkWeek</code> → <code>saveWeek</code>.</li>
+        </ul>
+      </li>
+      <li>Click <code>saveWeek</code>'s input/output — that is the exact Week the teacher approved for this fixture.</li>
+      <li>For a pain case (<code>pain-lutut</code>, <code>sakit-no-dx</code>): open <code>draftWeek</code>'s output and point — <em>“zero quality days, because knee.”</em> That is your demo line.</li>
+    </ol>
+
+    <h2>The 60-second presentation move</h2>
+    <p class="note">
+      “We have 13 golden fixtures. The terminal says 13 for 13. And here —” (open Langfuse, click one trace) “— is the film of one of them: the robot read the diary, borrowed coach notes, drew the week, the teacher checked it, and saved. Every step filmed.”
+    </p>
+
+    <h2>If a trace is missing</h2>
+    <p>
+      Work the checklist from <a href="../reference/debug-checklist.html">the debug reference</a>: printed <code>traceId</code> → API lookup → UI filters.
+      Remember lesson 0001: flush succeeding is not proof a row exists.
+    </p>
+
+    <h2>Check yourself</h2>
+    <div class="quiz" data-quiz data-correct="a" data-ok="Right — rules decide in-process; Langfuse films the runs." data-bad="The verdict comes from the rule oracle; Langfuse is the film.">
+      <h3>1. Where does the PASS/FAIL verdict come from?</h3>
+      <button type="button" data-choice="a">The pure-rule oracle in the terminal.</button>
+      <button type="button" data-choice="b">A Langfuse dashboard score.</button>
+      <button type="button" data-choice="c">The model grading itself.</button>
+      <div class="feedback" aria-live="polite"></div>
+    </div>
+    <div class="quiz" data-quiz data-correct="a" data-ok="Yes — one fixture, one film." data-bad="Each case is its own trace named BuildThisWeek.">
+      <h3>2. Ten board cases produce how many BuildThisWeek traces?</h3>
+      <button type="button" data-choice="a">Ten, one per case.</button>
+      <button type="button" data-choice="b">One merged trace.</button>
+      <button type="button" data-choice="c">None, evals skip tracing.</button>
+      <div class="feedback" aria-live="polite"></div>
+    </div>
+    <div class="quiz" data-quiz data-correct="a" data-ok="Right — effort low keeps evals fast and cheap." data-bad="Evals deliberately run at effort low.">
+      <h3>3. Why do evals run faster than a real build?</h3>
+      <button type="button" data-choice="a">They run at effort low.</button>
+      <button type="button" data-choice="b">They skip the teacher check.</button>
+      <button type="button" data-choice="c">They use a smaller diary.</button>
+      <div class="feedback" aria-live="polite"></div>
+    </div>
+
+    <h2>Read this</h2>
+    <p class="source">
+      Primary source: <a href="https://langfuse.com/docs/evaluation/overview">Langfuse evaluation overview</a> (traces → monitor → datasets → experiments — where this project sits today and where it can grow).
+      Our own fixture contract: <a href="../../document/PRD.en.md">PRD §10</a>.
+    </p>
+    <p class="ask">
+      Ask the teacher anything — “what is a dataset in Langfuse?”, “could CI block a bad PR?”, “why effort low?” — that is the next lesson waiting to happen.
+    </p>
+    <footer class="foot">
+      Tied to <a href="../MISSION.md">the mission</a>. Practice once before the presentation; then it is one minute of stage time.
+    </footer>
+  </div>
+  <script src="../assets/quiz.js"></script>
+</body>
+</html>

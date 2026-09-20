@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Eval → Langfuse quick reference</title>
+  <link rel="stylesheet" href="../assets/lesson.css" />
+</head>
+<body>
+  <div class="wrap">
+    <nav class="crumbs">
+      <a href="../lessons/0005-check-evals-in-langfuse.html">Lesson 0005</a>
+      ·
+      <a href="../RESOURCES.md">Resources</a>
+    </nav>
+    <header class="mast">
+      <p class="kicker">Reference · print me</p>
+      <h1>Eval → Langfuse quick reference</h1>
+      <p class="lede">Command, expected output, where to look, what to say.</p>
+    </header>
+
+    <table>
+      <thead><tr><th>Step</th><th>Command / click</th><th>Expect</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><code>pnpm --filter @runmax/agent evals</code></td><td><code>10/10 passed</code> (~4 min)</td></tr>
+        <tr><td>2</td><td><code>pnpm --filter @runmax/agent evals:consult</code></td><td><code>3/3 passed</code></td></tr>
+        <tr><td>3</td><td>One case: append id, e.g. <code>… evals pain-lutut</code></td><td>that case only</td></tr>
+        <tr><td>4</td><td>Langfuse → Traces → 24h → search <code>BuildThisWeek</code></td><td>10 fresh traces, sessionId <code>demo</code></td></tr>
+        <tr><td>5</td><td>Open one trace</td><td>AGENT root → GENERATION turns → TOOL children in workflow order</td></tr>
+        <tr><td>6</td><td>Click <code>saveWeek</code> observation</td><td>the exact Week the teacher approved</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Trace names → suite</h2>
+    <table>
+      <thead><tr><th>Trace name</th><th>Suite</th><th>Count</th></tr></thead>
+      <tbody>
+        <tr><td><code>BuildThisWeek</code></td><td>board fixtures (§10 1–10)</td><td>10</td></tr>
+        <tr><td><code>ConsultThenBuild</code></td><td>consult fixtures (§10 11–13)</td><td>3</td></tr>
+        <tr><td><code>ConsultChat</code></td><td>live /api/chat turns</td><td>per message</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Fixture ids (quote these on stage)</h2>
+    <p><code>happy-en</code> · <code>pain-lutut</code> · <code>two-hard-draft</code> · <code>no-rest</code> · <code>empty-log</code> · <code>quality-no-pace</code> · <code>mixed-id-en</code> · <code>board-has-seven</code> · <code>second-build-overwrite</code> · <code>sakit-no-dx</code> · consult: <code>consult-pain-log</code> · <code>consult-handoff-once</code> · <code>consult-no-dx</code></p>
+
+    <p class="note">
+      Verdict = rule oracle (terminal). Film = Langfuse trace. Two halves, one report card.
+      Sources: <a href="https://langfuse.com/docs/evaluation/overview">evaluation overview</a>, <a href="../../document/PRD.en.md">PRD §10</a>.
+    </p>
+    <footer class="foot">Keep next to <a href="../lessons/0005-check-evals-in-langfuse.html">lesson 0005</a> and the <a href="presentation-cheatsheet.html">cheat sheet</a>.</footer>
+  </div>
+</body>
+</html>
