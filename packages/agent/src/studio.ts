@@ -4,10 +4,14 @@
 import { Studio, createInMemoryStudioStore } from "@anvia/studio";
 import type { Agent } from "@anvia/core";
 import { createConsultSmith, createWeeksmith } from "./agent.js";
+import { getModel, WEEKSMITH_MODEL_ID } from "./model.js";
 import { connectNotesMcp } from "./notes.js";
 import { createLocalMemoryStore, fileWeekStore, memoryLogStore } from "./stores.js";
 import { langfuse } from "./tracing.js";
 import { runBuildThisWeek } from "./workflow.js";
+
+const modelId = process.env.WEEKSMITH_MODEL ?? WEEKSMITH_MODEL_ID;
+const gatewayRef = { providerId: "gateway", modelId };
 
 const notes = await connectNotesMcp();
 const weeks = fileWeekStore();
@@ -19,19 +23,18 @@ const weeksmith = createWeeksmith({
 });
 
 // ConsultSmith hands off into the same Weeksmith — one fail-closed saveWeek.
-let handoffRun: Promise<unknown> | null = null;
 const consult = createConsultSmith({
   stores: { logs },
   memory: { store: createLocalMemoryStore() },
-  handoff: () => {
-    handoffRun = (async () => {
-      const log = await logs.load();
-      const result = await runBuildThisWeek(weeksmith, { notes, weeks }, { log });
-      return result.ok
+  handoff: async () => {
+    const log = await logs.load();
+    const result = await runBuildThisWeek(weeksmith, { notes, weeks }, { log });
+    return {
+      ok: result.ok,
+      text: result.ok
         ? `Week built and saved: ${result.week?.weekStart}`
-        : `Build failed: ${result.error ?? "unknown"}`;
-    })();
-    return handoffRun.then((text) => ({ ok: true, text: String(text) }));
+        : `Build failed: ${result.error ?? "unknown"}`,
+    };
   },
 });
 
@@ -41,6 +44,22 @@ const store = createInMemoryStudioStore();
 const studio = new Studio(agents, {
   ui: true,
   stores: { sessions: store, traces: store },
+  models: {
+    providers: [
+      {
+        id: "gateway",
+        name: "DevScale gateway",
+        defaultModelId: modelId,
+        models: [{ id: modelId, name: modelId }],
+        createCompletionModel: ({ modelId: id }) => getModel(id),
+      },
+    ],
+    defaultModelRef: gatewayRef,
+    agents: {
+      weeksmith: { defaultModelRef: gatewayRef },
+      consultsmith: { defaultModelRef: gatewayRef },
+    },
+  },
   quickPrompts: {
     weeksmith: [
       "Build this week. The Log is empty.",
@@ -59,7 +78,6 @@ studio.start({ port: 4021, hostname: "127.0.0.1", log: true });
 
 const shutdown = async () => {
   await studio.shutdown({ timeoutMs: 3000 });
-  if (handoffRun) await handoffRun.catch(() => {});
   await notes.close();
   await langfuse.close();
   process.exit(0);
