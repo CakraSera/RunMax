@@ -22,7 +22,10 @@ export class RequestRejected extends Error {
 /**
  * Validate the public chat request before any model work: size caps first,
  * then Anvia protocol parsing, then product limits. Browser history is
- * untrusted context — the server owns instructions and tools.
+ * untrusted context — the server owns instructions and tools. Only the last
+ * user text is consumed here, and the agent's own history comes from its
+ * memory store, so tool turns in a replayed thread are pass-through
+ * protocol shapes, not an execution path.
  */
 export async function readChatRequest(request: Request): Promise<ClientStreamRequest> {
   const declared = Number(request.headers.get('content-length') ?? '0')
@@ -62,7 +65,7 @@ export async function readChatRequest(request: Request): Promise<ClientStreamReq
   }
   if (
     body.messages.at(-1)?.role !== 'user' ||
-    !body.messages.every(isTextConversation)
+    !body.messages.every(isReplayableMessage)
   ) {
     throw new RequestRejected(
       new Response('Only user and assistant text messages are accepted', { status: 400 }),
@@ -71,8 +74,12 @@ export async function readChatRequest(request: Request): Promise<ClientStreamReq
   return body
 }
 
-function isTextConversation(message: Message): boolean {
-  if (message.role !== 'user' && message.role !== 'assistant') return false
+/**
+ * The wire protocol allows tool turns, and useChat replays the whole thread
+ * once the agent has used tools (e.g. askCues) — so accept every Message
+ * shape the protocol parser already validated, bounding only sizes.
+ */
+function isReplayableMessage(message: Message): boolean {
   if (typeof message.content === 'string') {
     // Empty strings are allowed: the UI can echo blank assistant placeholders.
     // They carry no context, but rejecting them breaks replay after a reload.
@@ -80,12 +87,23 @@ function isTextConversation(message: Message): boolean {
   }
   return (
     message.content.length <= MAX_PARTS &&
-    message.content.every(
-      (part) =>
-        // Reasoning parts are display-only and routinely exceed the text cap
-        // (the model thinks in long chains); only text content is bounded.
-        (part.type === 'reasoning' && (part.text?.length ?? 0) <= MAX_REASONING_LENGTH) ||
-        (part.type === 'text' && part.text.length <= MAX_TEXT_LENGTH),
-    )
+    message.content.every(isBoundedPart)
   )
+}
+
+type ContentPart = Extract<Message['content'], readonly unknown[]>[number];
+
+function isBoundedPart(part: ContentPart): boolean {
+  switch (part.type) {
+    case 'text':
+      return part.text.length <= MAX_TEXT_LENGTH
+    case 'reasoning':
+      // Reasoning parts are display-only and routinely exceed the text cap
+      // (the model thinks in long chains); only text content is bounded.
+      return (part.text?.length ?? 0) <= MAX_REASONING_LENGTH
+    default:
+      // tool-call / tool-result / image / file parts: the whole payload is
+      // size-capped via MAX_BODY_BYTES, and the shape is protocol-valid.
+      return true
+  }
 }
