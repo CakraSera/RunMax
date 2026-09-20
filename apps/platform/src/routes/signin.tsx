@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import HeaderBrand from "@/components/HeaderBrand";
-import { login, AuthError } from "@/lib/auth";
+import { login, AuthError, isAuthenticated } from "@/lib/auth";
 
 export const Route = createFileRoute("/signin")({
   component: SignIn,
@@ -84,9 +84,11 @@ function SignIn() {
           Sign up
         </Link>
       </p>
-      <Link to="/" className="mt-3 text-center text-[13px] text-faint underline">
-        Back to the Board
-      </Link>
+      {isAuthenticated() ? (
+        <Link to="/" className="mt-3 text-center text-[13px] text-faint underline">
+          Back to the Board
+        </Link>
+      ) : null}
     </main>
   );
 }
