@@ -74,7 +74,7 @@ v1 surface is **web, phone width** ([ADR 0004](docs/adr/0004-web-mobile-first.md
 | `docs/adr/` | Short title+rationale ADRs `0001`–`0014`. New architecture → next `00NN-kebab.md`. |
 | `apps/api/src/` | Server sources: `index.ts` entry; `modules/auth` (register/login/me), `modules/chat` (streaming), `modules/{build,week}` (Board data); `utils/prisma.ts`. |
 | `apps/api/prisma/` | Schema + migrations for the server's PostgreSQL store. |
-| `apps/api/scripts/` | `dev-db.ts` (embedded Postgres) and `smoke.ts` (route contract checks). |
+| `apps/api/scripts/` | `smoke.ts` (route contract checks). |
 
 `app-example/` is leftover create-expo-app starter. Gitignored. Do not import from it.
 
@@ -94,7 +94,7 @@ pnpm --filter @runmax/domain test      # golden fixtures, offline
 pnpm --filter @runmax/agent evals      # PRD §10 fixtures through the model
 pnpm --filter @runmax/agent studio     # Anvia Studio UI at http://127.0.0.1:4021/playground
 pnpm --filter api dev      # server: tsx watch src/index.ts (port 8000)
-pnpm db:up                 # rootless embedded dev db on :54330 (docker compose db = :15434)
+pnpm db:up                 # docker compose db on :15434
 pnpm db:migrate            # prisma migrate via root .env
 pnpm --filter api smoke    # route contract checks incl. auth flow
 ```
@@ -148,7 +148,7 @@ max), `LANGFUSE_*`). Gateway is OpenRouter.
 | Server runtime | Node ≥ 22.18, Hono + @hono/node-server, Prisma 7 + @prisma/adapter-pg |
 | Docs (TanStack Router) | https://tanstack.com/router/latest |
 
-`pnpm-workspace.yaml` members: `apps/**`, `packages/**`. FE `apps/platform`, BE `apps/api`, AI `packages/agent`. `allowBuilds` additionally allowlists `@embedded-postgres/linux-x64`, `@prisma/engines`, and `prisma` postinstall scripts.
+`pnpm-workspace.yaml` members: `apps/**`, `packages/**`. FE `apps/platform`, BE `apps/api`, AI `packages/agent`. `allowBuilds` additionally allowlists `@prisma/engines` and `prisma` postinstall scripts.
 
 ## Testing & QA
 

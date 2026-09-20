@@ -8,7 +8,6 @@ allowBuilds:
   unrs-resolver: true
   esbuild: true
   lightningcss: true
-  '@embedded-postgres/linux-x64': true
   argon2: true
   protobufjs: true
 

@@ -27,6 +27,5 @@ app-example
 # local server data
 .data/
 
-# embedded dev database + prisma client
-.devpg/
+# prisma client
 apps/api/src/generated/
